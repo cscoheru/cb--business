@@ -19,7 +19,7 @@ class PaymentStatus(str, enum.Enum):
 class Subscription(Base):
     __tablename__ = "subscriptions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default='gen_random_uuid()')
+    id = Column(UUID(as_uuid=True), primary_key=True, )
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     plan_tier = Column(String(20), nullable=False)
     status = Column(String(20), default="active")
@@ -38,7 +38,7 @@ class Subscription(Base):
 class Payment(Base):
     __tablename__ = "payments"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default='gen_random_uuid()')
+    id = Column(UUID(as_uuid=True), primary_key=True, )
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     subscription_id = Column(UUID(as_uuid=True), ForeignKey("subscriptions.id"))
     amount = Column(Numeric(10, 2), nullable=False)
@@ -55,7 +55,7 @@ class Payment(Base):
 class UserUsage(Base):
     __tablename__ = "user_usage"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default='gen_random_uuid()')
+    id = Column(UUID(as_uuid=True), primary_key=True, )
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     usage_type = Column(String(50), nullable=False)
     quantity = Column(Integer, default=1)

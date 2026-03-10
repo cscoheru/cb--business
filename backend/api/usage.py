@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from datetime import datetime, timedelta, date
 from typing import Optional
+import uuid
 
 from models.user import User
 from models.subscription import UserUsage
@@ -34,7 +35,7 @@ async def check_rate_limit(
         select(func.count(UserUsage.id))
         .where(
             and_(
-                UserUsage.user_id == str(user.id),
+                UserUsage.user_id == user.id,
                 UserUsage.usage_type == usage_type,
                 UserUsage.period_date == today,
             )
@@ -55,6 +56,7 @@ async def check_rate_limit(
 
     # 记录使用
     new_usage = UserUsage(
+        id=uuid.uuid4(),
         user_id=user.id,
         usage_type=usage_type,
         quantity=1,
@@ -76,6 +78,7 @@ async def record_usage(
     today = date.today()
 
     new_usage = UserUsage(
+        id=uuid.uuid4(),
         user_id=user.id,
         usage_type=usage_type,
         quantity=quantity,

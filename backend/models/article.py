@@ -8,7 +8,7 @@ class Article(Base):
     """文章模型"""
     __tablename__ = "articles"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default='gen_random_uuid()')
+    id = Column(UUID(as_uuid=True), primary_key=True, )
     title = Column(String(500), nullable=False)
     summary = Column(Text)
     full_content = Column(Text)
@@ -41,7 +41,7 @@ class ArticleTag(Base):
     """文章标签"""
     __tablename__ = "article_tags"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default='gen_random_uuid()')
+    id = Column(UUID(as_uuid=True), primary_key=True, )
     article_id = Column(UUID(as_uuid=True), ForeignKey("articles.id", ondelete="CASCADE"), nullable=False)
     tag = Column(String(100), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -51,7 +51,7 @@ class CrawlLog(Base):
     """爬取日志"""
     __tablename__ = "crawl_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default='gen_random_uuid()')
+    id = Column(UUID(as_uuid=True), primary_key=True, )
     source = Column(String(100), nullable=False)
     status = Column(String(20), nullable=False)  # success/failed/partial
     articles_count = Column(Integer, default=0)

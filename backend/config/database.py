@@ -9,13 +9,22 @@ async_db_url = settings.DATABASE_URL.replace(
     "postgresql://", "postgresql+asyncpg://"
 )
 
-engine = create_async_engine(
-    async_db_url,
-    echo=settings.DEBUG,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20
-)
+# 根据数据库类型设置不同的引擎参数
+if "sqlite" in async_db_url:
+    # SQLite 不支持连接池设置
+    engine = create_async_engine(
+        async_db_url,
+        echo=settings.DEBUG,
+    )
+else:
+    # PostgreSQL 使用连接池
+    engine = create_async_engine(
+        async_db_url,
+        echo=settings.DEBUG,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20
+    )
 
 # 创建异步会话工厂
 AsyncSessionLocal = sessionmaker(

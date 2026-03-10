@@ -36,7 +36,7 @@ async def create_subscription(
     existing = await db.execute(
         select(Subscription).where(
             and_(
-                Subscription.user_id == str(current_user.id),
+                Subscription.user_id == current_user.id,
                 Subscription.status == "active",
             )
         )
@@ -63,6 +63,7 @@ async def create_subscription(
 
     # 创建订阅
     new_subscription = Subscription(
+        id=uuid.uuid4(),
         user_id=current_user.id,
         plan_tier=subscription_data.plan_tier.value,
         status="active",

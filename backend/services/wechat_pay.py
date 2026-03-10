@@ -16,12 +16,10 @@ class WeChatPayService:
         self.mch_id = settings.WECHAT_MCH_ID
         self.api_key = settings.WECHAT_API_KEY
         self.notify_url = settings.WECHAT_NOTIFY_URL
-        self.is_sandbox = settings.WECHAT_SANDBOX
 
     def _get_api_url(self) -> str:
-        """获取API URL（沙箱或生产）"""
-        if self.is_sandbox:
-            return "https://api.mch.weixin.qq.com/sandboxnew/pay/unifiedorder"
+        """获取微信支付API URL"""
+        # 微信支付已废弃沙箱环境，直接使用生产环境
         return "https://api.mch.weixin.qq.com/pay/unifiedorder"
 
     def _generate_nonce(self) -> str:

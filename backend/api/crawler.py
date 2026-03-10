@@ -82,6 +82,7 @@ async def trigger_crawl(
 
     # 创建爬取日志
     crawl_log = CrawlLog(
+        id=uuid.uuid4(),
         source=source_name,
         status="running",
         articles_count=0,
@@ -284,6 +285,7 @@ async def execute_crawl_task(
 
                 # 创建文章记录
                 article = Article(
+                    id=uuid.uuid4(),
                     title=article_data.get("title", ""),
                     summary=article_data.get("summary", ""),
                     full_content=article_data.get("full_content", ""),

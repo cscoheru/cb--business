@@ -4,6 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from datetime import datetime, timedelta
 from typing import Optional
+import logging
+import uuid
+
+logger = logging.getLogger(__name__)
+
 
 from models.user import User
 from models.subscription import Subscription, Payment
@@ -85,6 +90,7 @@ async def create_payment_order(
 
     # 创建支付记录
     payment = Payment(
+        id=uuid.uuid4(),
         user_id=current_user.id,
         subscription_id=None,  # 支付成功后创建订阅
         amount=amount,
@@ -152,6 +158,9 @@ async def query_payment(
 @router.post("/wechat/notify")
 async def wechat_notify(request: Request, db: AsyncSession = Depends(get_db)):
     """微信支付回调"""
+    from config.redis import redis_client
+    import json
+
     xml_data = await request.body()
     xml_str = xml_data.decode()
 
@@ -159,6 +168,7 @@ async def wechat_notify(request: Request, db: AsyncSession = Depends(get_db)):
     is_valid, data = wechat_pay.verify_notify(xml_str)
 
     if not is_valid:
+        logger.warning(f"Invalid payment notification signature")
         return wechat_pay.build_notify_response(False, "签名验证失败")
 
     # 检查支付结果
@@ -173,10 +183,25 @@ async def wechat_notify(request: Request, db: AsyncSession = Depends(get_db)):
         payment = result.scalar_one_or_none()
 
         if not payment:
+            logger.warning(f"Payment not found for order: {order_no}")
             return wechat_pay.build_notify_response(False, "支付记录不存在")
+
+        # 添加金额验证
+        total_fee = data.get("total_fee")
+        if total_fee != int(payment.amount * 100):
+            logger.warning(f"Payment amount mismatch: {total_fee} != {payment.amount * 100}")
+            return wechat_pay.build_notify_response(False, "金额不匹配")
+
+        # 添加重放攻击防护（使用Redis）
+        cache_key = f"payment_notify:{order_no}"
+        existing = await redis_client.get(cache_key)
+        if existing:
+            logger.info(f"Payment already processed: {order_no}")
+            return wechat_pay.build_notify_response(True, "OK")  # 已处理
 
         # 避免重复处理
         if payment.payment_status == PaymentStatus.COMPLETED.value:
+            await redis_client.set(cache_key, "1", ex=3600)  # 1小时过期
             return wechat_pay.build_notify_response(True, "OK")
 
         # 更新支付状态
@@ -185,7 +210,6 @@ async def wechat_notify(request: Request, db: AsyncSession = Depends(get_db)):
         payment.completed_at = datetime.utcnow()
 
         # 解析额外数据
-        import json
         try:
             extra_data = json.loads(payment.extra_data) if payment.extra_data else {}
             plan_tier = extra_data.get("plan_tier", "pro")
@@ -224,6 +248,7 @@ async def wechat_notify(request: Request, db: AsyncSession = Depends(get_db)):
         else:
             # 创建新订阅
             subscription = Subscription(
+                id=uuid.uuid4(),
                 user_id=payment.user_id,
                 plan_tier=plan_tier,
                 status="active",
@@ -238,6 +263,9 @@ async def wechat_notify(request: Request, db: AsyncSession = Depends(get_db)):
 
         payment.subscription_id = str(subscription.id)
         await db.commit()
+
+        # 标记为已处理
+        await redis_client.set(cache_key, "1", ex=3600)  # 1小时过期
 
         return wechat_pay.build_notify_response(True, "OK")
 
@@ -330,6 +358,7 @@ async def mock_payment_complete(
         subscription.auto_renew = True
     else:
         subscription = Subscription(
+            id=uuid.uuid4(),
             user_id=payment.user_id,
             plan_tier=plan_tier,
             status="active",

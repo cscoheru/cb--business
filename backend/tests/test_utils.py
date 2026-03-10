@@ -1,142 +1,111 @@
-# tests/conftest.py
-"""
-Pytest configuration for backend API tests.
-Uses SQLite in-memory database for fast testing.
-"""
+# tests/test_utils.py
+"""Test utilities and fixtures"""
 import pytest
-import os
-import sys
+import asyncio
 import uuid
-from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock
-
-# Set test environment BEFORE any imports
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
-os.environ["REDIS_URL"] = "redis://localhost:6379/0"
-os.environ["SECRET_KEY"] = "test_secret_key_for_testing_only"
-os.environ["ALLOWED_ORIGINS"] = "*"
-
-# Mock Redis client before importing
-class MockRedisClient:
-    def __init__(self):
-        self.client = None
-    
-    async def connect(self):
-        self.client = MagicMock()
-    
-    async def disconnect(self):
-        pass
-    
-    async def get(self, key: str):
-        return None
-    
-    async def set(self, key: str, value: str, ex: int = None):
-        pass
-    
-    async def delete(self, key: str):
-        pass
-    
-    async def ping(self) -> bool:
-        return True
-
-mock_redis_client = MockRedisClient()
-
-async def mock_get_redis() -> MockRedisClient:
-    if not mock_redis_client.client:
-        await mock_redis_client.connect()
-    return mock_redis_client
-
-class MockRedisModule:
-    redis_client = mock_redis_client
-    get_redis = mock_get_redis
-
-sys.modules["config.redis"] = MockRedisModule()
-
-# Now import
+from typing import AsyncGenerator, Generator
+from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool
+
+# Must set environment before any config imports
+import os
+os.environ["DATABASE_URL"] = "postgresql+asyncpg://test:test@localhost/test_db"
+os.environ["REDIS_URL"] = "redis://localhost"
+os.environ["SECRET_KEY"] = "test_secret_key"
+
+# Mock Redis before imports
+mock_redis_instance = MagicMock()
+mock_redis_instance.connect = AsyncMock()
+mock_redis_instance.disconnect = AsyncMock()
+
+import sys
+sys.modules["config.redis"] = MagicMock()
+sys.modules["config.redis"].redis_client = mock_redis_instance
+
+# Now import - this will create the engine with the test DATABASE_URL
 from api import app
-from api.dependencies import get_db
+from config.database import get_db
 from models.base import Base
 from models.user import User
 from models.subscription import Subscription
-from models.article import Article
+
+# Clear startup events to prevent connection attempts
+app.state.startup_calls = []
+app.state.shutdown_calls = []
 
 
-# Create a single test engine that will be shared
-test_engine = None
-test_session_factory = None
+# Test database URL
+TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 
 @pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    import asyncio
-    loop = asyncio.new_event_loop()
+def event_loop() -> Generator:
+    loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
 @pytest.fixture(scope="function")
-async def db_setup():
-    """Set up test database and session factory."""
-    global test_engine, test_session_factory
-    
-    # Create engine
-    test_engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
+async def db_engine():
+    engine = create_async_engine(
+        TEST_DATABASE_URL,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    
-    # Create all tables
-    async with test_engine.begin() as conn:
+
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    # Create session factory
-    test_session_factory = async_sessionmaker(
-        test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    
-    yield test_engine
-    
-    # Cleanup
-    await test_engine.dispose()
+
+    yield engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+    await engine.dispose()
 
 
 @pytest.fixture(scope="function")
-async def db_session(db_setup):
-    """Create a test database session."""
-    async with test_session_factory() as session:
+async def db_session(db_engine):
+    async_session_maker = async_sessionmaker(
+        db_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    async with async_session_maker() as session:
         yield session
 
 
 @pytest.fixture(scope="function")
-async def client(db_session):
-    """Create a test client with database override."""
-    # Override api.dependencies.get_db
+async def client(db_session: AsyncSession):
+    """Test client with dependency overrides"""
+    
     async def override_get_db():
         yield db_session
     
     app.dependency_overrides[get_db] = override_get_db
     
+    # Create a mock lifespan that doesn't connect to external services
+    async def mock_lifespan(app):
+        yield
+    
+    # Temporarily replace lifespan
+    original_router = app.router
+    
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test"
-    ) as ac:
-        yield ac
+    ) as test_client:
+        yield test_client
     
     app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")
 async def test_user(db_session: AsyncSession) -> User:
-    """Create a test user."""
     from api.auth import get_password_hash
-
     user = User(
         id=uuid.uuid4(),
         email="test@example.com",
@@ -153,9 +122,7 @@ async def test_user(db_session: AsyncSession) -> User:
 
 @pytest.fixture(scope="function")
 async def pro_user(db_session: AsyncSession) -> User:
-    """Create a Pro test user."""
     from api.auth import get_password_hash
-
     user = User(
         id=uuid.uuid4(),
         email="pro@example.com",
@@ -177,15 +144,12 @@ async def pro_user(db_session: AsyncSession) -> User:
     )
     db_session.add(subscription)
     await db_session.commit()
-
     return user
 
 
 @pytest.fixture(scope="function")
 async def admin_user(db_session: AsyncSession) -> User:
-    """Create an admin test user."""
     from api.auth import get_password_hash
-
     user = User(
         id=uuid.uuid4(),
         email="admin@example.com",
@@ -202,7 +166,6 @@ async def admin_user(db_session: AsyncSession) -> User:
 
 @pytest.fixture(scope="function")
 async def auth_token(client: AsyncClient, test_user: User) -> str:
-    """Get authentication token for test user."""
     response = await client.post("/api/v1/auth/login", json={
         "email": test_user.email,
         "password": "password123"
@@ -213,7 +176,6 @@ async def auth_token(client: AsyncClient, test_user: User) -> str:
 
 @pytest.fixture(scope="function")
 async def pro_token(client: AsyncClient, pro_user: User) -> str:
-    """Get authentication token for Pro user."""
     response = await client.post("/api/v1/auth/login", json={
         "email": pro_user.email,
         "password": "password123"
@@ -224,7 +186,6 @@ async def pro_token(client: AsyncClient, pro_user: User) -> str:
 
 @pytest.fixture(scope="function")
 async def admin_token(client: AsyncClient, admin_user: User) -> str:
-    """Get authentication token for admin user."""
     response = await client.post("/api/v1/auth/login", json={
         "email": admin_user.email,
         "password": "admin123"
@@ -235,33 +196,14 @@ async def admin_token(client: AsyncClient, admin_user: User) -> str:
 
 @pytest.fixture(scope="function")
 async def auth_headers(auth_token: str) -> dict:
-    """Get authentication headers."""
     return {"Authorization": f"Bearer {auth_token}"}
 
 
 @pytest.fixture(scope="function")
 async def pro_headers(pro_token: str) -> dict:
-    """Get Pro user authentication headers."""
     return {"Authorization": f"Bearer {pro_token}"}
 
 
 @pytest.fixture(scope="function")
 async def admin_headers(admin_token: str) -> dict:
-    """Get admin authentication headers."""
     return {"Authorization": f"Bearer {admin_token}"}
-
-
-@pytest.fixture(scope="function")
-async def test_subscription(db_session: AsyncSession, test_user: User) -> Subscription:
-    """Create a test subscription."""
-    subscription = Subscription(
-        id=uuid.uuid4(),
-        user_id=test_user.id,
-        plan_tier="pro",
-        billing_cycle="monthly",
-        status="active"
-    )
-    db_session.add(subscription)
-    await db_session.commit()
-    await db_session.refresh(subscription)
-    return subscription

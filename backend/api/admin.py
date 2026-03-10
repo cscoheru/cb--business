@@ -17,10 +17,8 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 # ============ 权限验证 ============
 async def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
-    """验证用户是否为管理员"""
-    # TODO: 添加真正的管理员验证逻辑
-    # 目前临时使用 plan_tier == "enterprise" 作为管理员标识
-    if current_user.plan_tier != PlanTier.ENTERPRISE:
+    """验证当前用户是否为管理员"""
+    if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "NOT_ADMIN", "message": "需要管理员权限"}
@@ -99,7 +97,7 @@ async def get_users(
             select(func.sum(UserUsage.quantity))
             .where(
                 and_(
-                    UserUsage.user_id == str(user.id),
+                    UserUsage.user_id == user.id,
                     UserUsage.period_date == today,
                 )
             )

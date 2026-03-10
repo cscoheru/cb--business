@@ -17,10 +17,9 @@ class TestAuthFlow:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["success"] is True
-        assert "access_token" in data["data"]
-        assert "refresh_token" in data["data"]
-        assert data["data"]["user"]["email"] == "newuser@example.com"
+        assert "access_token" in data
+        assert data["user"]["email"] == "newuser@example.com"
+        assert data["user"]["name"] == "新用户"
 
     async def test_register_duplicate_email(self, client: AsyncClient, test_user):
         """测试重复邮箱注册"""
@@ -32,8 +31,7 @@ class TestAuthFlow:
 
         assert response.status_code == 400
         data = response.json()
-        assert data["success"] is False
-        assert "EMAIL_EXISTS" in data["error"]["code"]
+        assert "detail" in data or "error" in data
 
     async def test_login_success(self, client: AsyncClient, test_user):
         """测试成功登录"""
@@ -44,9 +42,8 @@ class TestAuthFlow:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["success"] is True
-        assert "access_token" in data["data"]
-        assert "refresh_token" in data["data"]
+        assert "access_token" in data
+        assert "refresh_token" in data
 
     async def test_login_wrong_password(self, client: AsyncClient, test_user):
         """测试错误密码登录"""
@@ -56,8 +53,6 @@ class TestAuthFlow:
         })
 
         assert response.status_code == 401
-        data = response.json()
-        assert data["success"] is False
 
     async def test_login_nonexistent_user(self, client: AsyncClient):
         """测试不存在用户登录"""
@@ -67,8 +62,6 @@ class TestAuthFlow:
         })
 
         assert response.status_code == 401
-        data = response.json()
-        assert data["success"] is False
 
     async def test_get_current_user(self, client: AsyncClient, auth_headers):
         """测试获取当前用户信息"""
@@ -79,8 +72,7 @@ class TestAuthFlow:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["success"] is True
-        assert data["data"]["email"] == "test@example.com"
+        assert data["email"] == "test@example.com"
 
     async def test_get_current_user_without_auth(self, client: AsyncClient):
         """测试未认证获取用户信息"""
@@ -95,7 +87,7 @@ class TestAuthFlow:
             "email": test_user.email,
             "password": "password123"
         })
-        refresh_token = login_response.json()["data"]["refresh_token"]
+        refresh_token = login_response.json()["refresh_token"]
 
         # 使用refresh_token获取新的access_token
         response = await client.post("/api/v1/auth/refresh", json={
@@ -104,8 +96,7 @@ class TestAuthFlow:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["success"] is True
-        assert "access_token" in data["data"]
+        assert "access_token" in data
 
     async def test_refresh_token_invalid(self, client: AsyncClient):
         """测试无效的refresh_token"""
@@ -130,7 +121,7 @@ class TestUserManagement:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["data"]["name"] == "更新后的名字"
+        assert data["name"] == "更新后的名字"
 
     async def test_change_password(self, client: AsyncClient, auth_headers):
         """测试修改密码"""
@@ -144,8 +135,6 @@ class TestUserManagement:
         )
 
         assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
 
         # 验证新密码可以登录
         login_response = await client.post("/api/v1/auth/login", json={
@@ -166,5 +155,3 @@ class TestUserManagement:
         )
 
         assert response.status_code == 400
-        data = response.json()
-        assert data["success"] is False

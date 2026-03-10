@@ -1,5 +1,5 @@
 # models/user.py
-from sqlalchemy import Column, String, DateTime, UUID
+from sqlalchemy import Column, String, DateTime, UUID, Boolean
 from config.database import Base
 from models.base import TimestampMixin
 import enum
@@ -20,7 +20,7 @@ class PlanStatus(str, enum.Enum):
 class User(Base, TimestampMixin):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default='gen_random_uuid()')
+    id = Column(UUID(as_uuid=True), primary_key=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255))
     name = Column(String(100))
@@ -31,3 +31,4 @@ class User(Base, TimestampMixin):
     last_login_at = Column(DateTime(timezone=True))
     region_preference = Column(String(50))
     currency_preference = Column(String(10), default="CNY")
+    is_admin = Column(Boolean, default=False, nullable=False)

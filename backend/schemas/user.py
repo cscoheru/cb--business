@@ -1,7 +1,7 @@
 # schemas/user.py
-from pydantic import BaseModel, EmailStr, field_serializer
+from pydantic import BaseModel, EmailStr, field_validator
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 from models.user import PlanTier, PlanStatus
 import uuid
 
@@ -41,10 +41,13 @@ class UserResponse(UserBase):
     created_at: datetime
     last_login_at: Optional[datetime] = None
 
-    @field_serializer('id')
-    def serialize_id(self, id: uuid.UUID) -> str:
-        """Convert UUID to string"""
-        return str(id)
+    @field_validator('id', mode='before')
+    @classmethod
+    def validate_id(cls, v: Any) -> str:
+        """Convert UUID to string during validation"""
+        if isinstance(v, uuid.UUID):
+            return str(v)
+        return v
 
     class Config:
         from_attributes = True

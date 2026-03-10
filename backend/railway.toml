@@ -4,9 +4,8 @@ builder = "NIXPACKS"
 [build.env]
 PYTHON_VERSION = "3.11"
 
-# 使用 Procfile 中的启动命令
 [deploy]
 healthcheckPath = "/health"
-healthcheckTimeout = 300
+healthcheckTimeout = 600
 restartPolicyType = "ON_FAILURE"
-# 不设置 startCommand，让 Railway 使用 Procfile
+startupTimeout = 600

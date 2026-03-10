@@ -7,6 +7,9 @@ from config.redis import redis_client
 from api.health import router as health_router
 from api.auth import router as auth_router
 from api.users import router as users_router
+from api.subscriptions import router as subscriptions_router
+from api.usage import router as usage_router
+from api.admin import router as admin_router
 import logging
 
 # 配置日志
@@ -34,6 +37,9 @@ app.add_middleware(
 app.include_router(health_router, tags=["health"])
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(subscriptions_router)
+app.include_router(usage_router)
+app.include_router(admin_router)
 
 # 启动事件
 @app.on_event("startup")

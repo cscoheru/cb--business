@@ -80,15 +80,21 @@ app.include_router(crawler_router)
 async def startup_event():
     """应用启动时执行"""
     logger.info(f"{settings.APP_NAME} starting up...")
-    await redis_client.connect()
-    logger.info("Redis connected")
 
-    # 启动爬虫调度器
+    # 尝试连接 Redis（不阻塞启动）
     try:
-        from scheduler.scheduler import crawler_scheduler
-        await crawler_scheduler.start()
+        await redis_client.connect()
+        logger.info("Redis connected")
     except Exception as e:
-        logger.warning(f"调度器启动失败: {e}")
+        logger.warning(f"Redis connection failed (non-critical): {e}")
+
+    # 启动爬虫调度器（不阻塞启动）
+    try:
+        from scheduler.scheduler import start_scheduler
+        await start_scheduler()
+        logger.info("Scheduler started")
+    except Exception as e:
+        logger.warning(f"Scheduler startup failed (non-critical): {e}")
 
 # 关闭事件
 @app.on_event("shutdown")
@@ -98,11 +104,20 @@ async def shutdown_event():
 
     # 停止爬虫调度器
     try:
-        from scheduler.scheduler import crawler_scheduler
-        await crawler_scheduler.stop()
+        from scheduler.scheduler import stop_scheduler
+        await stop_scheduler()
     except Exception as e:
-        logger.warning(f"调度器停止失败: {e}")
+        logger.warning(f"Scheduler shutdown failed: {e}")
 
-    await redis_client.disconnect()
-    await engine.dispose()
-    logger.info("Connections closed")
+    # 关闭连接（忽略错误）
+    try:
+        await redis_client.disconnect()
+    except Exception:
+        pass
+
+    try:
+        await engine.dispose()
+    except Exception:
+        pass
+
+    logger.info("Shutdown complete")

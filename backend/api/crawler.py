@@ -1,5 +1,5 @@
 # api/crawler.py
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, desc
 from typing import List, Optional
@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import uuid
 import json
 import logging
+import asyncio
 
 from models.user import User
 from models.article import Article, CrawlLog
@@ -40,7 +41,8 @@ if zhpu_key:
 else:
     ai_processor = MockAIProcessor()
 
-background_tasks = BackgroundTasks()
+# 存储正在运行的后台任务
+running_tasks = {}
 
 
 @router.post("/trigger/{source_name}", response_model=CrawlTriggerResponse)
@@ -91,13 +93,9 @@ async def trigger_crawl(
     db.add(crawl_log)
     await db.commit()
 
-    # 后台执行爬取任务
-    background_tasks.add_task(
-        execute_crawl_task,
-        source_name,
-        str(crawl_log.id),
-        db
-    )
+    # 创建真正的后台任务
+    task = asyncio.create_task(execute_crawl_task(source_name, str(crawl_log.id)))
+    running_tasks[source_name] = task
 
     return CrawlTriggerResponse(
         success=True,
@@ -164,10 +162,9 @@ async def list_articles(
     theme: Optional[str] = None,
     region: Optional[str] = None,
     platform: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取文章列表"""
+    """获取文章列表（公开访问）"""
     # 构建查询
     conditions = []
 
@@ -203,8 +200,40 @@ async def list_articles(
     result = await db.execute(query)
     articles = result.scalars().all()
 
+    # Convert database models to response format
+    article_responses = []
+    for article in articles:
+        import json
+        tags_list = []
+        try:
+            if article.tags:
+                tags_list = json.loads(article.tags)
+        except:
+            pass
+
+        article_responses.append(ArticleResponse(
+            id=str(article.id),
+            title=article.title,
+            summary=article.summary,
+            full_content=article.full_content,
+            link=article.link,
+            source=article.source,
+            language=article.language,
+            content_theme=article.content_theme,
+            region=article.region,
+            platform=article.platform,
+            tags=tags_list,
+            risk_level=article.risk_level,
+            opportunity_score=article.opportunity_score,
+            author=article.author,
+            published_at=article.published_at,
+            crawled_at=article.crawled_at,
+            is_processed=article.is_processed,
+            is_published=article.is_published,
+        ))
+
     return ArticleListResponse(
-        articles=[ArticleResponse.model_validate(article) for article in articles],
+        articles=article_responses,
         total=total,
         page=page,
         per_page=per_page
@@ -214,10 +243,9 @@ async def list_articles(
 @router.get("/articles/{article_id}", response_model=ArticleResponse)
 async def get_article(
     article_id: str,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取文章详情"""
+    """获取文章详情（公开访问）"""
     import uuid
 
     try:
@@ -236,7 +264,35 @@ async def get_article(
             detail={"code": "ARTICLE_NOT_FOUND", "message": "文章不存在"}
         )
 
-    return ArticleResponse.model_validate(article)
+    # Convert database model to response format
+    import json
+    tags_list = []
+    try:
+        if article.tags:
+            tags_list = json.loads(article.tags)
+    except:
+        pass
+
+    return ArticleResponse(
+        id=str(article.id),
+        title=article.title,
+        summary=article.summary,
+        full_content=article.full_content,
+        link=article.link,
+        source=article.source,
+        language=article.language,
+        content_theme=article.content_theme,
+        region=article.region,
+        platform=article.platform,
+        tags=tags_list,
+        risk_level=article.risk_level,
+        opportunity_score=article.opportunity_score,
+        author=article.author,
+        published_at=article.published_at,
+        crawled_at=article.crawled_at,
+        is_processed=article.is_processed,
+        is_published=article.is_published,
+    )
 
 
 async def execute_crawl_task(

@@ -78,7 +78,7 @@ async def get_current_active_user(
     current_user: User = Depends(get_current_user)
 ) -> User:
     """获取当前活跃用户"""
-    if current_user.plan_status.value != "active":
+    if current_user.plan_status != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="用户账户已停用"
@@ -89,7 +89,7 @@ async def get_current_active_user(
 def require_feature(feature: str):
     """要求用户有访问某个功能的权限（装饰器依赖工厂）"""
     def dependency(current_user: User = Depends(get_current_user)) -> User:
-        if not can_access_feature(current_user.plan_tier.value, feature):
+        if not can_access_feature(current_user.plan_tier, feature):
             required_plan = get_required_plan_for_feature(feature)
 
             if required_plan == "pro":
@@ -107,7 +107,7 @@ def require_feature(feature: str):
                     "code": "FEATURE_LOCKED",
                     "feature": feature,
                     "required_plan": required_plan,
-                    "current_plan": current_user.plan_tier.value,
+                    "current_plan": current_user.plan_tier,
                     "message": message
                 }
             )
@@ -117,14 +117,14 @@ def require_feature(feature: str):
 
 def require_pro_user(current_user: User = Depends(get_current_user)) -> User:
     """快捷方法：要求专业版或企业版用户"""
-    if current_user.plan_tier.value == "free":
+    if current_user.plan_tier == "free":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "code": "UPGRADE_REQUIRED",
                 "message": "此功能需要专业版或企业版订阅",
                 "required_plan": "pro",
-                "current_plan": current_user.plan_tier.value
+                "current_plan": current_user.plan_tier
             }
         )
     return current_user

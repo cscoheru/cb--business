@@ -24,8 +24,14 @@ class RSSCrawler:
         articles = []
 
         try:
-            # 使用aiohttp获取RSS内容
-            async with aiohttp.ClientSession() as session:
+            # 使用aiohttp获取RSS内容（开发环境禁用SSL验证）
+            import ssl
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+
+            connector = aiohttp.TCPConnector(ssl=ssl_context)
+            async with aiohttp.ClientSession(connector=connector) as session:
                 async with session.get(self.url, timeout=aiohttp.ClientTimeout(total=30)) as response:
                     if response.status != 200:
                         logger.error(f"Failed to fetch RSS from {self.source_name}: status {response.status}")
@@ -94,7 +100,13 @@ class RSSCrawler:
     async def _fetch_full_content(self, url: str) -> Optional[str]:
         """获取完整文章内容"""
         try:
-            async with aiohttp.ClientSession() as session:
+            import ssl
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+
+            connector = aiohttp.TCPConnector(ssl=ssl_context)
+            async with aiohttp.ClientSession(connector=connector) as session:
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=15)) as response:
                     if response.status != 200:
                         return None

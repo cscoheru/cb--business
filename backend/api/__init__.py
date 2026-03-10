@@ -11,7 +11,9 @@ from api.subscriptions import router as subscriptions_router
 from api.usage import router as usage_router
 from api.admin import router as admin_router
 from api.payments import router as payments_router
+from api.crawler import router as crawler_router
 import logging
+import json
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -42,6 +44,7 @@ app.include_router(subscriptions_router)
 app.include_router(usage_router)
 app.include_router(payments_router)
 app.include_router(admin_router)
+app.include_router(crawler_router)
 
 # 启动事件
 @app.on_event("startup")

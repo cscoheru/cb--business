@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     # 日志级别
     LOG_LEVEL: str = "INFO"
 
+    # 智谱AI
+    ZHIPU_AI_KEY: str = ""
+
     # 支付回调URL
     PAYMENT_BASE_URL: str = "https://api.cb.3strategy.cc"  # 生产环境URL
 

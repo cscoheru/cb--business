@@ -83,11 +83,26 @@ async def startup_event():
     await redis_client.connect()
     logger.info("Redis connected")
 
+    # 启动爬虫调度器
+    try:
+        from scheduler.scheduler import crawler_scheduler
+        await crawler_scheduler.start()
+    except Exception as e:
+        logger.warning(f"调度器启动失败: {e}")
+
 # 关闭事件
 @app.on_event("shutdown")
 async def shutdown_event():
     """应用关闭时执行"""
     logger.info("Shutting down...")
+
+    # 停止爬虫调度器
+    try:
+        from scheduler.scheduler import crawler_scheduler
+        await crawler_scheduler.stop()
+    except Exception as e:
+        logger.warning(f"调度器停止失败: {e}")
+
     await redis_client.disconnect()
     await engine.dispose()
     logger.info("Connections closed")

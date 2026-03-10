@@ -5,7 +5,8 @@
 > **预计工期**: 3天
 > **依赖任务**: 所有开发和测试任务
 > **创建日期**: 2025-03-10
-> **状态**: ⏳ 进行中（代码已推送至GitHub）
+> **状态**: ⏳ 进行中（部分完成，遇到Railway配额限制）
+> **最后更新**: 2025-03-10 21:00
 
 ---
 
@@ -18,6 +19,70 @@
 | **主仓库** | 后端 + 文档 | https://github.com/cscoheru/cb--business | ✅ 已推送 |
 | **Frontend** | 用户前端 | https://github.com/cscoheru/cb-business-frontend | ✅ 已推送 |
 | **Admin** | 管理后台 | https://github.com/cscoheru/cb-business-admin | ✅ 已推送 |
+
+---
+
+## 🔄 部署进度跟踪
+
+### 当前状态更新 (2025-03-10 21:00)
+
+| 服务 | 状态 | 说明 | 下一步操作 |
+|------|------|------|-----------|
+| **后端 API** | 🔴 阻塞 | Railway 免费计划资源配额已满 | 需要升级 Railway 计划或使用替代方案 |
+| **用户前端** | 🟡 待部署 | Vercel CLI 已安装，项目未链接 | 使用 Vercel GitHub 集成部署 |
+| **管理后台** | 🟡 待部署 | Vercel CLI 已安装，项目未链接 | 使用 Vercel GitHub 集成部署 |
+| **域名 DNS** | ⏸️ 待配置 | 等待服务部署完成 | 配置 CNAME 记录 |
+| **SSL 证书** | ⏸️ 待配置 | 等待 DNS 配置完成 | 平台自动生成 |
+
+### ✅ 已完成工作
+
+1. **Vercel CLI 安装**: `npm install -g vercel` ✅
+2. **Railway CLI 检查**: 已登录 (klyliae@gmail.com) ✅
+3. **Vercel 账号登录**: cscoheru's Projects ✅
+4. **部署准备文件**: 已在 `deploy/` 目录准备好所有配置文件 ✅
+
+### 🚧 遇到的问题
+
+#### 问题 1: Railway 免费计划配额限制
+
+**错误信息**:
+```
+Free plan resource provision limit exceeded. Please upgrade to provision more resources!
+```
+
+**影响**: 无法创建新的 Railway 项目部署后端 API
+
+**解决方案**:
+1. **方案 A** (推荐): 升级 Railway 到付费计划 ($5/月起)
+2. **方案 B**: 删除 Railway 中未使用的项目释放配额
+3. **方案 C**: 使用其他托管平台 (如 Render, Fly.io, AWS)
+
+#### 问题 2: Vercel CLI 项目链接问题
+
+**问题**: 使用 `vercel link` 时自动检测到错误的项目配置
+
+**解决方案**: 使用 **Vercel GitHub 集成**方式部署（推荐，见下方）
+
+### 📋 推荐的下一步操作
+
+1. **解决 Railway 配额问题**:
+   ```bash
+   # 登录 Railway 查看当前项目
+   railway login
+   railway list
+
+   # 删除不需要的项目释放配额，或
+   # 升级到付费计划
+   ```
+
+2. **使用 Vercel GitHub 集成部署前端**:
+   - 访问 https://vercel.com/new
+   - 导入 GitHub 仓库 `cscoheru/cb-business-frontend`
+   - 配置环境变量后部署
+
+3. **使用 Vercel GitHub 集成部署管理后台**:
+   - 导入 GitHub 仓库 `cscoheru/cb-business-admin`
+   - 配置环境变量后部署
 
 ---
 

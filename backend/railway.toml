@@ -4,12 +4,9 @@ builder = "NIXPACKS"
 [build.env]
 PYTHON_VERSION = "3.11"
 
+# 使用 Procfile 中的启动命令
 [deploy]
-startCommand = "python -m api"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
-
-# 优化构建缓存
-[build.nixpacks]
-provider = "python"
+# 不设置 startCommand，让 Railway 使用 Procfile

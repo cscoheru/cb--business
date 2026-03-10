@@ -1,8 +1,5 @@
 [build]
-builder = "NIXPACKS"
-
-[build.env]
-PYTHON_VERSION = "3.11"
+builder = "DOCKERFILE"
 
 [deploy]
 healthcheckPath = "/health"

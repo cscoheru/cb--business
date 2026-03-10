@@ -9,25 +9,25 @@ sqlalchemy>=2.0.23
 asyncpg>=0.29.0
 aiosqlite>=0.19.0
 redis>=5.0.1
-sqlalchemy-utils>=0.41.1
 
 # 认证
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
-bcrypt>=4.0.1
 python-multipart>=0.0.6
-
-# 支付
-qrcode>=7.4.2
-cryptography>=41.0.7
 
 # 工具
 python-dotenv>=1.0.0
 httpx>=0.25.2
 aiofiles>=23.2.1
 
-# 爬虫相关
-feedparser>=6.0.10
-APScheduler>=3.10.4
-beautifulsoup4>=4.12.2
-lxml>=4.9.3
+# 爬虫相关 (暂时注释以加速构建)
+# feedparser>=6.0.10
+# APScheduler>=3.10.4
+# beautifulsoup4>=4.12.2
+# lxml>=4.9.3
+
+# 可选: 如果需要这些功能，后续单独安装
+# qrcode>=7.4.2
+# cryptography>=41.0.7
+# sqlalchemy-utils>=0.41.1
+

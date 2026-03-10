@@ -25,11 +25,14 @@ class Settings(BaseSettings):
     # CORS
     ALLOWED_ORIGINS: str = "*"
 
-    # 微信支付（后续使用）
+    # 微信支付
     WECHAT_APP_ID: str = ""
     WECHAT_MCH_ID: str = ""
     WECHAT_API_KEY: str = ""
+    WECHAT_API_V3_KEY: str = ""  # API v3 密钥
+    WECHAT_CERT_PATH: str = ""  # 证书路径
     WECHAT_NOTIFY_URL: str = ""
+    WECHAT_SANDBOX: bool = True  # 是否使用沙箱环境
 
     # MinIO 对象存储
     MINIO_ENDPOINT: str = ""
@@ -50,6 +53,9 @@ class Settings(BaseSettings):
 
     # 日志级别
     LOG_LEVEL: str = "INFO"
+
+    # 支付回调URL
+    PAYMENT_BASE_URL: str = "https://api.cb.3strategy.cc"  # 生产环境URL
 
     class Config:
         env_file = ".env"

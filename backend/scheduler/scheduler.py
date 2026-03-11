@@ -43,48 +43,37 @@ scheduler = AsyncIOScheduler(**scheduler_config)
 async def start_scheduler():
     """启动调度器"""
     try:
-        # 导入任务函数（可选）
-        from scheduler.tasks import (
-            crawl_retail_dive, crawl_shopify_blog,
-            crawl_cifnews, crawl_techcrunch, cleanup_old_articles
-        )
+        # 导入任务函数和配置
+        from scheduler.tasks import cleanup_old_articles
+        from crawler.config import get_enabled_sources
 
-        # 添加定时任务
-        # Retail Dive - 每30分钟爬取一次
-        scheduler.add_job(
-            crawl_retail_dive,
-            trigger=IntervalTrigger(minutes=30),
-            id='retail_dive_crawl',
-            name='Retail Dive 定时爬取',
-            replace_existing=True,
-        )
+        # 获取所有启用的数据源
+        sources = get_enabled_sources()
+        logger.info(f"找到 {len(sources)} 个已启用的数据源")
 
-        # Shopify Blog - 每30分钟爬取一次
-        scheduler.add_job(
-            crawl_shopify_blog,
-            trigger=IntervalTrigger(minutes=30),
-            id='shopify_blog_crawl',
-            name='Shopify Blog 定时爬取',
-            replace_existing=True,
-        )
+        # 为每个数据源创建定时任务
+        for source_name, config in sources.items():
+            try:
+                # 创建动态任务函数
+                async def crawl_job():
+                    from scheduler.tasks import execute_crawl
+                    logger.info(f"🔄 开始爬取 {config['name']}...")
+                    result = await execute_crawl(source_name)
+                    logger.info(f"✅ {config['name']} 爬取完成: {result.get('new_count', 0)} 篇新文章")
+                    return result
 
-        # 雨果网 - 每30分钟爬取一次
-        scheduler.add_job(
-            crawl_cifnews,
-            trigger=IntervalTrigger(minutes=30),
-            id='cifnews_crawl',
-            name='雨果网定时爬取',
-            replace_existing=True,
-        )
-
-        # TechCrunch - 每30分钟爬取一次
-        scheduler.add_job(
-            crawl_techcrunch,
-            trigger=IntervalTrigger(minutes=30),
-            id='techcrunch_crawl',
-            name='TechCrunch 定时爬取',
-            replace_existing=True,
-        )
+                # 添加定时任务 - 每30分钟爬取一次
+                scheduler.add_job(
+                    crawl_job,
+                    trigger=IntervalTrigger(minutes=30),
+                    id=f'{source_name}_crawl',
+                    name=f"{config['name']} 定时爬取",
+                    replace_existing=True,
+                    misfire_grace_time=3600,  # 错过1小时内的任务
+                )
+                logger.info(f"  ✓ 已注册: {config['name']} (每30分钟)")
+            except Exception as e:
+                logger.error(f"  ✗ 注册失败 {config['name']}: {e}")
 
         # 每天凌晨3点清理过期数据
         scheduler.add_job(
@@ -94,6 +83,8 @@ async def start_scheduler():
             name='清理过期文章',
             replace_existing=True,
         )
+        logger.info("  ✓ 已注册: 清理过期文章 (每天凌晨3点)")
+
     except ImportError as e:
         logger.warning(f"Scheduler tasks not available: {e}")
         logger.info("Starting scheduler without crawler tasks")

@@ -1,4 +1,11 @@
 # api/__init__.py
+import logging
+import json
+
+# 配置日志（必须在最前面）
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -13,20 +20,6 @@ from api.subscriptions import router as subscriptions_router
 from api.usage import router as usage_router
 from api.admin import router as admin_router
 from api.payments import router as payments_router
-
-# 可选的 crawler 路由（依赖可能未安装）
-try:
-    from api.crawler import router as crawler_router
-    app.include_router(crawler_router)
-    logger.info("Crawler router loaded")
-except ImportError as e:
-    logger.warning(f"Crawler router not available: {e}")
-import logging
-import json
-
-# 配置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 # 创建FastAPI应用
@@ -93,14 +86,27 @@ app.include_router(usage_router)
 app.include_router(payments_router)
 app.include_router(admin_router)
 
+# 可选的 crawler 路由（依赖可能未安装）
+try:
+    from api.crawler import router as crawler_router
+    app.include_router(crawler_router)
+    logger.info("Crawler router loaded")
+except ImportError as e:
+    logger.warning(f"Crawler router not available: {e}")
+
 # 启动事件
 @app.on_event("startup")
 async def startup_event():
     """应用启动时执行"""
     logger.info(f"{settings.APP_NAME} starting up...")
 
-    # 立即返回，不等待任何外部服务
-    # Redis 和调度器在后台异步启动，不阻塞应用启动
+    # 启动爬虫调度器
+    try:
+        from scheduler.scheduler import start_scheduler
+        await start_scheduler()
+        logger.info("🚀 爬虫调度器已启动")
+    except Exception as e:
+        logger.error(f"Failed to start scheduler: {e}")
 
 # 关闭事件
 @app.on_event("shutdown")

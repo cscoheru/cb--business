@@ -2,11 +2,12 @@
 from typing import Dict, Any
 
 CRAWLER_SOURCES: Dict[str, Dict[str, Any]] = {
+    # ===== 现有数据源 =====
     "retail_dive": {
         "name": "Retail Dive",
         "type": "rss",
         "url": "https://www.retaildive.com/feeds/news/",
-        "update_interval": 1800,  # 30分钟
+        "update_interval": 1800,
         "enabled": True,
         "language": "en",
     },
@@ -14,8 +15,8 @@ CRAWLER_SOURCES: Dict[str, Dict[str, Any]] = {
         "name": "Shopify Blog",
         "type": "rss",
         "url": "https://www.shopify.com/blog.xml",
-        "update_interval": 1800,  # 30分钟
-        "enabled": False,  # 暂时关闭（RSS 404）
+        "update_interval": 1800,
+        "enabled": False,
         "language": "en",
     },
     "cifnews": {
@@ -23,7 +24,7 @@ CRAWLER_SOURCES: Dict[str, Dict[str, Any]] = {
         "type": "http",
         "base_url": "https://www.cifnews.com",
         "list_url": "/Category/1-1.html",
-        "update_interval": 1800,  # 30分钟
+        "update_interval": 1800,
         "enabled": True,
         "language": "zh",
     },
@@ -31,7 +32,117 @@ CRAWLER_SOURCES: Dict[str, Dict[str, Any]] = {
         "name": "TechCrunch",
         "type": "rss",
         "url": "https://techcrunch.com/feed/",
-        "update_interval": 1800,  # 30分钟
+        "update_interval": 1800,
+        "enabled": True,
+        "language": "en",
+    },
+
+    # ===== 电商行业权威媒体 =====
+    "digital_commerce_360": {
+        "name": "Digital Commerce 360",
+        "type": "rss",
+        "url": "https://www.digitalcommerce360.com/feed/",
+        "update_interval": 1800,
+        "enabled": True,
+        "language": "en",
+    },
+    "ecommerce_bytes": {
+        "name": "EcommerceBytes",
+        "type": "rss",
+        "url": "https://www.ecommercebytes.com/feed/",
+        "update_interval": 1800,
+        "enabled": True,
+        "language": "en",
+    },
+    "pymnts": {
+        "name": "PYMNTS",
+        "type": "rss",
+        "url": "https://www.pymnts.com/feed/",
+        "update_interval": 1800,
+        "enabled": True,
+        "language": "en",
+    },
+
+    # ===== 平台官方博客 =====
+    "amazon_seller_news": {
+        "name": "Amazon Seller News",
+        "type": "rss",
+        "url": "https://sell.amazonpress.com/feed/",
+        "update_interval": 1800,
+        "enabled": True,
+        "language": "en",
+    },
+    "ebay_seller_news": {
+        "name": "eBay Seller News",
+        "type": "rss",
+        "url": "https://www.ebayinc.com/stories/feed/",
+        "update_interval": 1800,
+        "enabled": True,
+        "language": "en",
+    },
+
+    # ===== 支付与物流 =====
+    "paypal_blog": {
+        "name": "PayPal Blog",
+        "type": "rss",
+        "url": "https://www.paypal.com/us/webapps/mpp/blog/feed",
+        "update_interval": 1800,
+        "enabled": True,
+        "language": "en",
+    },
+    "stripe_blog": {
+        "name": "Stripe Blog",
+        "type": "rss",
+        "url": "https://stripe.com/blog/feed",
+        "update_interval": 1800,
+        "enabled": True,
+        "language": "en",
+    },
+
+    # ===== 东南亚科技媒体 =====
+    "tech_in_asia": {
+        "name": "Tech in Asia",
+        "type": "rss",
+        "url": "https://www.techinasia.com/feed",
+        "update_interval": 1800,
+        "enabled": True,
+        "language": "en",
+    },
+    "e27": {
+        "name": "e27",
+        "type": "rss",
+        "url": "https://e27.co/feed",
+        "update_interval": 1800,
+        "enabled": True,
+        "language": "en",
+    },
+
+    # ===== 电商研究 =====
+    "emarketer": {
+        "name": "eMarketer",
+        "type": "rss",
+        "url": "https://www.emarketer.com/rss",
+        "update_interval": 3600,
+        "enabled": True,
+        "language": "en",
+    },
+
+    # ===== 中国跨境电商媒体 =====
+    "ennews": {
+        "name": "亿恩网",
+        "type": "rss",
+        "url": "https://www.ennews.com/rss.xml",
+        "update_interval": 1800,
+        "enabled": True,
+        "language": "zh",
+    },
+
+    # ===== 拉美市场 =====
+    "mercopress": {
+        "name": "Mercopress",
+        "type": "rss",
+        "url": "https://en.mercopress.com/rss/",
+        "update_interval": 1800,
         "enabled": True,
         "language": "en",
     },

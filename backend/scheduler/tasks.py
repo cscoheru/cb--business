@@ -36,18 +36,9 @@ async def execute_crawl(source_name: str) -> dict:
 
     from config.database import AsyncSessionLocal
     async with AsyncSessionLocal() as db:
-        # 检查最近是否爬取过
-        from datetime import timedelta
-        recent_log = await db.execute(
-            select(CrawlLog).where(
-                CrawlLog.source == source_name,
-                CrawlLog.status == "success",
-                CrawlLog.completed_at > datetime.utcnow() - timedelta(minutes=30)
-            )
-        )
-        if recent_log.scalar_one_or_none():
-            logger.info(f"数据源 {source_name} 最近已爬取，跳过")
-            return {"success": True, "articles_count": 0, "skipped": True}
+        # ⚠️ 暂时移除重复爬取检查，允许每次都爬取
+        # 这样可以更快补充文章内容
+        # 后续可以添加智能去重逻辑
 
         # 创建爬取日志
         crawl_log = CrawlLog(
@@ -159,3 +150,32 @@ async def crawl_cifnews():
     logger.info("🔍 开始爬取雨果网...")
     result = await execute_crawl("cifnews")
     logger.info(f"雨果网爬取完成: {result}")
+
+
+async def crawl_techcrunch():
+    """TechCrunch 定时爬取任务"""
+    logger.info("🔍 开始爬取 TechCrunch...")
+    result = await execute_crawl("techcrunch")
+    logger.info(f"TechCrunch 爬取完成: {result}")
+
+
+async def cleanup_old_articles():
+    """清理90天前的未发布文章"""
+    from datetime import timedelta
+    from models.article import Article
+    from sqlalchemy import delete
+    from config.database import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as db:
+        cutoff_date = datetime.utcnow() - timedelta(days=90)
+
+        # 删除90天前未发布的文章
+        stmt = delete(Article).where(
+            Article.is_published == False,
+            Article.created_at < cutoff_date
+        )
+
+        result = await db.execute(stmt)
+        await db.commit()
+
+        logger.info(f"🧹 清理了 {result.rowcount} 条过期未发布文章")

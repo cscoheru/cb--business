@@ -161,6 +161,7 @@ async def list_articles(
     per_page: int = 20,
     theme: Optional[str] = None,
     region: Optional[str] = None,
+    country: Optional[str] = None,
     platform: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
@@ -172,6 +173,8 @@ async def list_articles(
         conditions.append(Article.content_theme == theme)
     if region:
         conditions.append(Article.region == region)
+    if country:
+        conditions.append(Article.country == country)
     if platform:
         conditions.append(Article.platform == platform)
 
@@ -221,6 +224,7 @@ async def list_articles(
             language=article.language,
             content_theme=article.content_theme,
             region=article.region,
+            country=article.country,
             platform=article.platform,
             tags=tags_list,
             risk_level=article.risk_level,
@@ -283,6 +287,7 @@ async def get_article(
         language=article.language,
         content_theme=article.content_theme,
         region=article.region,
+        country=article.country,
         platform=article.platform,
         tags=tags_list,
         risk_level=article.risk_level,

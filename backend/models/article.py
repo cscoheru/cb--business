@@ -19,6 +19,7 @@ class Article(Base):
     # AI分析结果
     content_theme = Column(String(50))  # 机会/风险/政策/指南等
     region = Column(String(50))  # 地区
+    country = Column(String(10))  # 国家代码 (th, vn, my, us, br, mx)
     platform = Column(String(50))  # 平台
     tags = Column(Text)  # JSON数组字符串 ["tag1", "tag2"]
     risk_level = Column(String(20))  # low/medium/high/critical

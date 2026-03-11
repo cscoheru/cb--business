@@ -5,8 +5,8 @@ CRAWLER_SOURCES: Dict[str, Dict[str, Any]] = {
     "retail_dive": {
         "name": "Retail Dive",
         "type": "rss",
-        "url": "https://retaildive.com/feed/",
-        "update_interval": 3600,  # 1小时
+        "url": "https://www.retaildive.com/feeds/news/",
+        "update_interval": 1800,  # 30分钟
         "enabled": True,
         "language": "en",
     },
@@ -14,25 +14,25 @@ CRAWLER_SOURCES: Dict[str, Dict[str, Any]] = {
         "name": "Shopify Blog",
         "type": "rss",
         "url": "https://www.shopify.com/blog.xml",
-        "update_interval": 3600,
-        "enabled": True,
+        "update_interval": 1800,  # 30分钟
+        "enabled": False,  # 暂时关闭（RSS 404）
         "language": "en",
     },
     "cifnews": {
         "name": "雨果网",
         "type": "http",
         "base_url": "https://www.cifnews.com",
-        "list_url": "/Category/1-1.html",  # 跨境电商栏目
-        "update_interval": 7200,  # 2小时
+        "list_url": "/Category/1-1.html",
+        "update_interval": 1800,  # 30分钟
         "enabled": True,
         "language": "zh",
     },
-    "tech_crunch": {
+    "techcrunch": {
         "name": "TechCrunch",
         "type": "rss",
         "url": "https://techcrunch.com/feed/",
-        "update_interval": 3600,
-        "enabled": False,  # 默认关闭，可通过环境变量启用
+        "update_interval": 1800,  # 30分钟
+        "enabled": True,
         "language": "en",
     },
 }

@@ -1,7 +1,8 @@
 # crawler/crawlers/http_crawler.py
+import asyncio
 import aiohttp
 from bs4 import BeautifulSoup
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
 

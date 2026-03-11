@@ -13,7 +13,6 @@ from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-
 # 任务存储配置（持久化任务状态）
 jobstores = {
     'default': SQLAlchemyJobStore(url=f'sqlite:///{settings.BASE_DIR}/scheduler_jobs.sqlite')
@@ -37,90 +36,73 @@ scheduler_config = {
 }
 
 
-class CrawlerScheduler:
-    """爬虫定时调度器"""
-
-    def __init__(self):
-        self.scheduler = AsyncIOScheduler(**scheduler_config)
-
-    async def start(self):
-        """启动调度器"""
-        # 导入任务函数
-        from scheduler.tasks import crawl_retail_dive, crawl_shopify_blog, crawl_cifnews
-
-        # 添加定时任务
-        # Retail Dive - 每2小时爬取一次
-        self.scheduler.add_job(
-            crawl_retail_dive,
-            trigger=IntervalTrigger(hours=2),
-            id='retail_dive_crawl',
-            name='Retail Dive 定时爬取',
-            replace_existing=True,
-        )
-
-        # Shopify Blog - 每2小时爬取一次
-        self.scheduler.add_job(
-            crawl_shopify_blog,
-            trigger=IntervalTrigger(hours=2),
-            id='shopify_blog_crawl',
-            name='Shopify Blog 定时爬取',
-            replace_existing=True,
-        )
-
-        # 雨果网 - 每4小时爬取一次（更新频率较低）
-        self.scheduler.add_job(
-            crawl_cifnews,
-            trigger=IntervalTrigger(hours=4),
-            id='cifnews_crawl',
-            name='雨果网定时爬取',
-            replace_existing=True,
-        )
-
-        # 每天凌晨3点清理过期数据
-        self.scheduler.add_job(
-            self.cleanup_old_articles,
-            trigger=CronTrigger(hour=3, minute=0),
-            id='cleanup_old_data',
-            name='清理过期文章',
-            replace_existing=True,
-        )
-
-        # 启动调度器
-        self.scheduler.start()
-        logger.info("🚀 爬虫调度器已启动")
-
-        # 打印任务列表
-        jobs = self.scheduler.get_jobs()
-        logger.info(f"📋 已注册 {len(jobs)} 个定时任务:")
-        for job in jobs:
-            logger.info(f"  - {job.name} (ID: {job.id}, 下次执行: {job.next_run_time})")
-
-    async def stop(self):
-        """停止调度器"""
-        self.scheduler.shutdown()
-        logger.info("🛑 爬虫调度器已停止")
-
-    async def cleanup_old_articles(self):
-        """清理90天前的未发布文章"""
-        from datetime import timedelta
-        from models.article import Article
-        from sqlalchemy import select, delete
-        from config.database import AsyncSessionLocal
-
-        async with AsyncSessionLocal() as db:
-            cutoff_date = datetime.utcnow() - timedelta(days=90)
-
-            # 删除90天前未发布的文章
-            stmt = delete(Article).where(
-                Article.is_published == False,
-                Article.created_at < cutoff_date
-            )
-
-            result = await db.execute(stmt)
-            await db.commit()
-
-            logger.info(f"🧹 清理了 {result.rowcount} 条过期未发布文章")
-
-
 # 全局调度器实例
-crawler_scheduler = CrawlerScheduler()
+scheduler = AsyncIOScheduler(**scheduler_config)
+
+
+async def start_scheduler():
+    """启动调度器"""
+    # 导入任务函数
+    from scheduler.tasks import crawl_retail_dive, crawl_shopify_blog, crawl_cifnews, crawl_techcrunch, cleanup_old_articles
+
+    # 添加定时任务
+    # Retail Dive - 每30分钟爬取一次
+    scheduler.add_job(
+        crawl_retail_dive,
+        trigger=IntervalTrigger(minutes=30),
+        id='retail_dive_crawl',
+        name='Retail Dive 定时爬取',
+        replace_existing=True,
+    )
+
+    # Shopify Blog - 每30分钟爬取一次
+    scheduler.add_job(
+        crawl_shopify_blog,
+        trigger=IntervalTrigger(minutes=30),
+        id='shopify_blog_crawl',
+        name='Shopify Blog 定时爬取',
+        replace_existing=True,
+    )
+
+    # 雨果网 - 每30分钟爬取一次
+    scheduler.add_job(
+        crawl_cifnews,
+        trigger=IntervalTrigger(minutes=30),
+        id='cifnews_crawl',
+        name='雨果网定时爬取',
+        replace_existing=True,
+    )
+
+    # TechCrunch - 每30分钟爬取一次
+    scheduler.add_job(
+        crawl_techcrunch,
+        trigger=IntervalTrigger(minutes=30),
+        id='techcrunch_crawl',
+        name='TechCrunch 定时爬取',
+        replace_existing=True,
+    )
+
+    # 每天凌晨3点清理过期数据
+    scheduler.add_job(
+        cleanup_old_articles,
+        trigger=CronTrigger(hour=3, minute=0),
+        id='cleanup_old_data',
+        name='清理过期文章',
+        replace_existing=True,
+    )
+
+    # 启动调度器
+    scheduler.start()
+    logger.info("🚀 爬虫调度器已启动")
+
+    # 打印任务列表
+    jobs = scheduler.get_jobs()
+    logger.info(f"📋 已注册 {len(jobs)} 个定时任务:")
+    for job in jobs:
+        logger.info(f"  - {job.name} (ID: {job.id}, 下次执行: {job.next_run_time})")
+
+
+async def stop_scheduler():
+    """停止调度器"""
+    scheduler.shutdown()
+    logger.info("🛑 爬虫调度器已停止")

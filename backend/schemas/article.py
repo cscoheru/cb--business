@@ -43,6 +43,7 @@ class ArticleResponse(BaseModel):
     language: str
     content_theme: Optional[str] = None
     region: Optional[str] = None
+    country: Optional[str] = None
     platform: Optional[str] = None
     tags: Optional[List[str]] = None
     risk_level: Optional[str] = None

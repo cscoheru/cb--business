@@ -54,8 +54,14 @@ ALLOWED_ORIGINS=https://cb.3strategy.cc,https://admin.cb.3strategy.cc
 class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./app.db"  # 默认值
     REDIS_URL: str = ""  # 可选
-    SECRET_KEY: str = "dev-key..."  # 开发默认值
+    SECRET_KEY: str = "dev-key-at-least-32-chars-long"  # 必须>=32字符
 ```
+
+### 常见缺失依赖
+- **email-validator** - Pydantic 的 EmailStr 验证需要
+  ```txt
+  email-validator>=2.0.0
+  ```
 
 ## Vercel 部署
 

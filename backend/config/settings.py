@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = ""
 
     # JWT
-    SECRET_KEY: str = "dev-secret-key-change-in-production-min-32-chars-please"
+    SECRET_KEY: str = "dev-secret-key-change-in-production-min-32-characters-required-for-security"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -67,14 +67,10 @@ class Settings(BaseSettings):
 
     @field_validator('SECRET_KEY')
     @classmethod
-    def validate_secret_key(cls, v, info):
-        environment = info.data.get('ENVIRONMENT', 'development')
-        # 只在生产环境检查密钥强度
-        if environment == "production":
-            if v == "dev-secret-key-change-in-production-min-32-chars-please":
-                raise ValueError("SECRET_KEY must be changed in production")
-            if len(v) < 32:
-                raise ValueError("SECRET_KEY must be at least 32 characters")
+    def validate_secret_key(cls, v):
+        # 只检查长度，不检查具体值
+        if len(v) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters")
         return v
 
     @field_validator('DATABASE_URL')

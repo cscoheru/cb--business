@@ -83,3 +83,4 @@ Thumbs.db
 # Specific to cb-Business
 backend/data/uploads/
 backend/logs/
+.worktrees/

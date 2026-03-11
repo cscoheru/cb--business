@@ -13,7 +13,14 @@ from api.subscriptions import router as subscriptions_router
 from api.usage import router as usage_router
 from api.admin import router as admin_router
 from api.payments import router as payments_router
-from api.crawler import router as crawler_router
+
+# 可选的 crawler 路由（依赖可能未安装）
+try:
+    from api.crawler import router as crawler_router
+    app.include_router(crawler_router)
+    logger.info("Crawler router loaded")
+except ImportError as e:
+    logger.warning(f"Crawler router not available: {e}")
 import logging
 import json
 
@@ -85,7 +92,6 @@ app.include_router(subscriptions_router)
 app.include_router(usage_router)
 app.include_router(payments_router)
 app.include_router(admin_router)
-app.include_router(crawler_router)
 
 # 启动事件
 @app.on_event("startup")

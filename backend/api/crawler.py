@@ -188,7 +188,7 @@ async def trigger_single_crawler(source_name: str):
 async def get_crawler_status():
     """获取爬虫状态"""
     from crawler.config import CRAWLER_SOURCES
-    
+
     return {
         "sources": [
             {
@@ -199,4 +199,51 @@ async def get_crawler_status():
             }
             for name, config in CRAWLER_SOURCES.items()
         ]
+    }
+
+
+@router.post("/reprocess")
+async def reprocess_articles(db: AsyncSession = Depends(get_db)):
+    """重新处理所有 region='global' 的文章，使用改进的分类器"""
+    from crawler.processors.ai_processor import MockAIProcessor
+    import json
+
+    processor = MockAIProcessor()
+
+    # 查找所有 region='global' 的文章
+    result = await db.execute(
+        select(Article).where(Article.region == 'global')
+    )
+    articles = result.scalars().all()
+
+    updated_count = 0
+    for article in articles:
+        # 重新分析文章
+        article_data = {
+            "title": article.title,
+            "summary": article.summary or "",
+            "full_content": article.full_content or "",
+            "source": article.source
+        }
+
+        analysis = await processor.analyze_article(article_data)
+
+        # 更新字段
+        article.region = analysis.get("region", "global")
+        article.content_theme = analysis.get("content_theme", "guide")
+        article.platform = analysis.get("platform", "other")
+        article.risk_level = analysis.get("risk_level", "low")
+        article.opportunity_score = analysis.get("opportunity_score", 0.5)
+        article.tags = json.dumps(analysis.get("tags", ["跨境电商"]))
+
+        updated_count += 1
+
+    # 提交更改
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"成功重新处理 {updated_count} 篇文章",
+        "updated_count": updated_count,
+        "total_articles": len(articles)
     }

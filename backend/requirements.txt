@@ -27,6 +27,7 @@ feedparser>=6.0.10
 APScheduler>=3.10.4
 beautifulsoup4>=4.12.2
 lxml>=4.9.3
+zhipuai>=2.1.0  # 智谱AI - 文章内容分析
 
 # 工具
 qrcode>=7.4.2

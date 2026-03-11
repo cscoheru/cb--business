@@ -65,7 +65,7 @@ async def create_payment_order(
     if amount is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "CUSTOM_PLAN", "message": "企业版需联系销售，请发送邮件至 sales@3strategy.cc"}
+            detail={"code": "CUSTOM_PLAN", "message": "企业版需联系销售，请发送邮件至 sales@zenconsult.top"}
         )
 
     if amount == 0:

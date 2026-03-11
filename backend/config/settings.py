@@ -28,8 +28,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # CORS
-    ALLOWED_ORIGINS: str = "*"  # 默认允许所有，生产环境应该限制
+    # CORS (new domain: zenconsult.top)
+    ALLOWED_ORIGINS: str = "https://www.zenconsult.top,https://admin.zenconsult.top"  # 默认允许所有，生产环境应该限制
 
     # 微信支付
     WECHAT_APP_ID: str = ""
@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     ZHIPU_AI_KEY: str = ""
 
     # 支付回调URL
-    PAYMENT_BASE_URL: str = "https://api.cb.3strategy.cc"  # 生产环境URL
+    PAYMENT_BASE_URL: str = "https://api.zenconsult.top"  # 生产环境URL
 
     @field_validator('SECRET_KEY')
     @classmethod

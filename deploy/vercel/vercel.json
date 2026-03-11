@@ -6,11 +6,11 @@
   "installCommand": "npm install",
   "devCommand": "npm run dev",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://api.cb.3strategy.cc"
+    "NEXT_PUBLIC_API_URL": "https://api.zenconsult.top"
   },
   "build": {
     "env": {
-      "NEXT_PUBLIC_API_URL": "https://api.cb.3strategy.cc"
+      "NEXT_PUBLIC_API_URL": "https://api.zenconsult.top"
     }
   },
   "routes": [
@@ -84,7 +84,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://api.cb.3strategy.cc/api/:path*"
+      "destination": "https://api.zenconsult.top/api/:path*"
     }
   ]
 }

@@ -44,7 +44,7 @@ CMD ["python", "-m", "api"]
 DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
 SECRET_KEY=<生成的密钥>
-ALLOWED_ORIGINS=https://cb.3strategy.cc,https://admin.cb.3strategy.cc
+ALLOWED_ORIGINS=https://www.zenconsult.top,https://admin.zenconsult.top
 ```
 
 ### 代码中的默认值

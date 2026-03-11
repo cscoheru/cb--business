@@ -4,7 +4,13 @@ import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from zhipuai import ZhipuAI
+# 可选导入 zhipuai
+try:
+    from zhipuai import ZhipuAI
+    ZHIPUAI_AVAILABLE = True
+except ImportError:
+    ZHIPUAI_AVAILABLE = False
+    ZhipuAI = None
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +18,11 @@ logger = logging.getLogger(__name__)
 class AIProcessor:
     """AI内容分析处理器 - 使用智谱AI"""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str = ""):
+        if not ZHIPUAI_AVAILABLE:
+            raise ImportError("zhipuai 模块未安装。请运行: pip install zhipuai")
+        if not api_key:
+            raise ValueError("api_key 不能为空")
         self.client = ZhipuAI(api_key=api_key)
         self.model = "glm-4-flash"  # 使用快速响应模型
 

@@ -134,56 +134,133 @@ class AIProcessor:
 class MockAIProcessor:
     """模拟AI处理器（用于开发测试）"""
 
+    # 来源与地区的映射关系
+    SOURCE_REGION_MAP = {
+        "Tech in Asia": "southeast_asia",
+        "e27": "southeast_asia",
+        "雨果网": "southeast_asia",
+        "亿恩网": "north_america",
+        "Mercopress": "latin_america",
+        "Retail Dive": "north_america",
+        "Digital Commerce 360": "north_america",
+        "EcommerceBytes": "north_america",
+        "PYMNTS": "north_america",
+        "Amazon Seller News": "north_america",
+        "eBay Seller News": "north_america",
+        "PayPal Blog": "north_america",
+        "Stripe Blog": "north_america",
+        "eMarketer": "global",
+        "TechCrunch": "global",
+    }
+
+    # 扩展的关键词列表
+    SOUTHEAST_ASIA_KEYWORDS = [
+        "southeast asia", "sea", "asean",
+        "thailand", "vietnam", "viet", "singapore", "singaporean",
+        "malaysia", "indonesia", "philippines", "philippine",
+        "jakarta", "bangkok", "ho chi minh", "hanoi", "kuala lumpur",
+        "shopee", "lazada", "tokopedia", "bukalapak",
+        "tiktok shop southeast", "shopee "
+    ]
+
+    NORTH_AMERICA_KEYWORDS = [
+        "north america", "usa", "us", "united states", "america", "american",
+        "canada", "canadian", "mexico", "us-based", "u.s.", "us-market",
+        "amazon us", "walmart", "target", "costco",
+        "federal trade commission", "ftc", "fcc"
+    ]
+
+    LATIN_AMERICA_KEYWORDS = [
+        "latin america", "latam", "latin american",
+        "brazil", "brazilian", "brasil", "são paulo", "rio",
+        "mexico", "mexican", "colombia", "colombian",
+        "argentina", "chile", "peru", "mercado libre", "mercadolibre"
+    ]
+
     async def analyze_article(self, article: Dict[str, Any]) -> Dict[str, Any]:
         """模拟分析文章内容"""
-        # 根据标题进行简单分类
+        # 根据标题和来源进行分类
         title = article.get("title", "").lower()
-        summary = article.get("summary", "")
+        summary = article.get("summary", "").lower()
+        source = article.get("source", "")
 
-        # 简单规则判断
-        if any(word in title for word in ["risk", "warning", "alert", "danger", "ban"]):
+        # 合并标题和摘要进行分析
+        text_content = title + " " + summary
+
+        # 首先根据来源推断地区
+        region = self.SOURCE_REGION_MAP.get(source, "global")
+
+        # 如果来源无法确定，通过关键词判断
+        if region == "global":
+            region = self._detect_region(text_content)
+
+        # 主题判断 - 扩展关键词
+        if any(word in text_content for word in ["risk", "warning", "alert", "danger", "ban", "fraud", "scam", "lawsuit", "crime"]):
             content_theme = "risk"
             risk_level = "medium"
-        elif any(word in title for word in ["opportunity", "growth", "expand", "launch"]):
+        elif any(word in text_content for word in ["opportunity", "growth", "expand", "launch", "new market", "emerging", "trend"]):
             content_theme = "opportunity"
             risk_level = "low"
-        elif any(word in title for word in ["policy", "regulation", "law", "tax"]):
+        elif any(word in text_content for word in ["policy", "regulation", "law", "tax", "tariff", "compliance", "legal", "bill"]):
             content_theme = "policy"
             risk_level = "medium"
+        elif any(word in text_content for word in ["platform", "amazon", "shopee", "lazada", "marketplace"]):
+            content_theme = "platform"
+            risk_level = "low"
+        elif any(word in text_content for word in ["logistics", "shipping", "fulfillment", "warehouse", "delivery", "supply chain"]):
+            content_theme = "logistics"
+            risk_level = "low"
         else:
             content_theme = "guide"
             risk_level = "low"
 
-        # 地区判断
-        if any(word in title for word in ["southeast asia", "sea", "thailand", "vietnam", "singapore"]):
-            region = "southeast_asia"
-        elif any(word in title for word in ["north america", "usa", "canada", "us"]):
-            region = "north_america"
-        elif any(word in title for word in ["europe", "uk", "germany", "france"]):
-            region = "europe"
-        elif any(word in title for word in ["latin america", "brazil", "mexico"]):
-            region = "latin_america"
-        else:
-            region = "global"
-
         # 平台判断
-        if any(word in title for word in ["amazon", "aws"]):
+        if any(word in text_content for word in ["amazon", "aws", "fba"]):
             platform = "amazon"
-        elif any(word in title for word in ["shopee", "shopee"]):
+        elif any(word in text_content for word in ["shopee"]):
             platform = "shopee"
-        elif any(word in title for word in ["lazada"]):
+        elif any(word in text_content for word in ["lazada"]):
             platform = "lazada"
-        elif any(word in title for word in ["shopify"]):
+        elif any(word in text_content for word in ["shopify"]):
             platform = "shopify"
+        elif any(word in text_content for word in ["tiktok shop", "tiktok"]):
+            platform = "tiktok"
+        elif any(word in text_content for word in ["mercado libre", "mercadolibre"]):
+            platform = "mercadolibre"
         else:
             platform = "other"
+
+        # 生成标签
+        tags = ["跨境电商"]
+        if region != "global":
+            tags.append(region.replace("_", " "))
+        if platform != "other":
+            tags.append(platform)
+        tags.append(content_theme)
 
         return {
             "content_theme": content_theme,
             "region": region,
             "platform": platform,
-            "tags": ["电商", "跨境电商"],
+            "tags": list(set(tags)),  # 去重
             "risk_level": risk_level,
-            "opportunity_score": 0.6 if content_theme == "opportunity" else 0.4,
+            "opportunity_score": 0.7 if content_theme == "opportunity" else (0.6 if region != "global" else 0.4),
             "summary_cn": summary[:100] if summary else title[:100]
         }
+
+    def _detect_region(self, text: str) -> str:
+        """通过关键词检测地区"""
+        # 检查东南亚关键词
+        if any(word in text for word in self.SOUTHEAST_ASIA_KEYWORDS):
+            return "southeast_asia"
+
+        # 检查北美关键词
+        if any(word in text for word in self.NORTH_AMERICA_KEYWORDS):
+            return "north_america"
+
+        # 检查拉美关键词
+        if any(word in text for word in self.LATIN_AMERICA_KEYWORDS):
+            return "latin_america"
+
+        # 默认返回 global
+        return "global"

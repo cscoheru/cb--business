@@ -19,6 +19,7 @@ python-multipart>=0.0.6
 # 工具
 python-dotenv>=1.0.0
 httpx>=0.25.2
+aiohttp>=3.9.0
 aiofiles>=23.2.1
 
 # 爬虫相关

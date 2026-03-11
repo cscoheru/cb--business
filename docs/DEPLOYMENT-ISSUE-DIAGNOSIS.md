@@ -1,22 +1,46 @@
-# ZenConsult 重新设计 v1.0 - 部署问题诊断报告
+# ZenConsult 重新设计 v1.0 - 部署问题诊断报告 (更新)
 
-> **时间**: 2026-03-11 16:00
-> **状态**: ⚠️ Vercel部署问题 - 需要手动修复
+> **时间**: 2026-03-11 17:45
+> **状态**: ⚠️ Vercel自动部署未触发 - 需要手动干预
 
 ---
 
 ## 🔴 问题诊断
 
 ### 症状
-- **预期**: https://www.zenconsult.top 显示新的ZenConsult设计
-- **实际**: 显示旧的"CB Business"版本
-- **影响**: 所有新功能无法访问
+- **国家页面错误**: 访问 `/th`, `/vn` 等国家页面返回 HTTP 500 "Application error"
+- **其他页面正常**: 首页、评估页面 `/assessment/capability` 返回 HTTP 200
+- **Vercel未自动部署**: 最新推送的提交 (6f50ccc, a8f1ac7) 未被Vercel部署
 
 ### 根本原因分析
 
-1. ✅ **GitHub代码正确**: `https://raw.githubusercontent.com/cscoheru/cb-business-frontend/main/app/page.tsx` 包含新代码
-2. ✅ **本地代码正确**: worktree frontend包含所有新组件
-3. ❌ **Vercel部署失败**: Vercel没有部署最新代码
+1. ✅ **GitHub代码正确**: 最新提交包含SSR修复
+   - `a8f1ac7`: "fix: move article fetching to client-side to prevent SSR errors"
+   - `6f50ccc`: "chore: trigger vercel deployment check"
+2. ✅ **本地构建成功**: TypeScript编译通过，无错误
+3. ❌ **Vercel自动部署失败**: Vercel未自动触发部署
+4. ✅ **SSR错误已修复**: 创建了 `CountryPortalContent` 客户端组件处理数据获取
+
+### 最新代码修复 (已推送到GitHub)
+
+**文件: `app/[country]/page.tsx`**
+- 移除了服务端API调用 (原第44行)
+- 改用 `CountryPortalContent` 客户端组件
+- 添加面包屑导航
+
+**文件: `components/country/country-portal-content.tsx`** (新增)
+- 客户端组件使用 `'use client'` 指令
+- 使用 `useEffect` 在客户端获取文章数据
+- 修复了TypeScript类型错误 (filter/map回调参数类型)
+- 正确导入了 `Link` 和 `getCountriesByRegion`
+
+### Vercel部署状态
+
+| 提交SHA | 时间 | 消息 | Vercel状态 |
+|---------|------|------|-----------|
+| 6f50ccc | 09:35:47 UTC | trigger vercel deployment check | ❌ 未部署 |
+| a8f1ac7 | 09:24:46 UTC | fix: move article fetching... | ❌ 未部署 |
+| 68fd872 | 09:04:58 UTC | add vercel.json config | ⚠️ 当前版本 (有SSR错误) |
 
 ### 可能原因
 
@@ -31,15 +55,52 @@
 
 ## 🔧 修复步骤
 
-### 步骤1: 检查Vercel项目配置
+### 步骤1: 访问Vercel Dashboard手动部署
 
-1. 访问 https://vercel.com/cscoheru's-projects
+**重要**: 由于Vercel的GitHub自动部署未触发，需要手动操作：
+
+1. 访问 https://vercel.com/dashboard
 2. 找到 `cb-business-frontend` 项目
-3. 检查项目设置 → Git
-4. 确认连接的仓库是 `cscoheru/cb-business-frontend`
-5. 确认连接的分支是 `main`
+3. 点击 **Deployments** 标签
+4. 查看最新部署状态 - 应该显示为 `68fd872` (一小时前)
+5. 点击最新部署右侧的 **...** 菜单
+6. 选择 **Redeploy** 强制重新部署
+7. 或点击 **New Deployment** 从最新提交 `6f50ccc` 部署
 
-### 步骤2: 重新连接GitHub (如果需要)
+### 步骤2: 检查Vercel项目Git配置
+
+如果手动部署失败，检查Git集成：
+
+1. 在Vercel项目中点击 **Settings** → **Git**
+2. 确认连接的仓库是 `cscoheru/cb-business-frontend`
+3. 确认连接的分支是 `main`
+4. 检查 **Ignored Build Step** 是否为空 (不应有忽略规则)
+5. 检查 **GitHub Webhook** 状态是否为 "Active"
+
+### 步骤3: 验证部署完成
+
+等待Vercel部署完成（通常需要1-3分钟），然后验证：
+
+```bash
+# 1. 检查国家页面HTTP状态 (应返回200而不是500)
+curl -I https://www.zenconsult.top/th
+
+# 2. 检查页面内容 (应包含国家门户内容，而不是"Application error")
+curl -s https://www.zenconsult.top/th | grep -o "泰王国\|Kingdom of Thailand\|Application error" | head -1
+
+# 3. 检查所有国家页面
+for country in th vn my us br mx; do
+  echo "Checking /$country:"
+  curl -sI https://www.zenconsult.top/$country | head -1
+done
+```
+
+**预期结果**:
+- HTTP/2 200 (而不是 500)
+- 包含国家门户内容 (泰王国/泰国等)
+- 显示6标签布局 (政策/机会/风险/实操/平台/物流)
+
+### 步骤4: 测试关键功能
 
 1. 在Vercel项目中点击 **Settings** → **Git**
 2. 点击 **Disconnect GitHub**
@@ -137,14 +198,30 @@ dig www.zenconsult.top CNAME
 
 ---
 
-## 📊 当前状态
+## 📊 当前状态 (2026-03-11 17:45 更新)
 
 | 项目 | 状态 | 说明 |
 |------|------|------|
-| GitHub代码 | ✅ 正确 | 最新代码已推送 |
-| 本地代码 | ✅ 正确 | worktree包含所有新功能 |
-| Vercel部署 | ❌ 失败 | 需要手动修复 |
+| GitHub代码 | ✅ 正确 | 最新提交 `6f50ccc` 包含SSR修复 |
+| 本地代码 | ✅ 正确 | 构建通过，无TypeScript错误 |
+| Vercel自动部署 | ❌ 未触发 | 需要手动部署 |
+| 当前线上版本 | ⚠️ 旧版本 | `68fd872` 仍有SSR错误 |
+| 国家页面 | ❌ HTTP 500 | Application error |
+| 其他页面 | ✅ 正常 | 首页、评估页面返回200 |
 | API服务 | ✅ 正常 | api.zenconsult.top 健康 |
+
+### 待部署的修复内容
+
+**Commit `a8f1ac7` 修复内容**:
+1. 创建 `components/country/country-portal-content.tsx` 客户端组件
+2. 修改 `app/[country]/page.tsx` 使用客户端组件获取数据
+3. 修复TypeScript类型错误 (filter/map参数类型)
+4. 添加正确的Link和getCountriesByRegion导入
+
+**修复原理**:
+- 原代码在服务端组件中调用API，导致服务端渲染时发生错误
+- 新代码将数据获取移到客户端的 `useEffect` 中，避免SSR问题
+- 客户端数据获取是异步的，不会阻塞页面初始渲染
 
 ---
 
@@ -158,5 +235,17 @@ dig www.zenconsult.top CNAME
 
 ---
 
-**报告生成**: 2026-03-11 16:00
-**优先级**: 🔴 高 - 需要立即修复
+**报告更新**: 2026-03-11 17:45
+**优先级**: 🔴 高 - 需要手动触发Vercel部署
+
+## 📝 快速操作指南
+
+如果只是想快速修复，请按以下步骤操作：
+
+1. **访问Vercel**: https://vercel.com/dashboard
+2. **找到项目**: `cb-business-frontend`
+3. **点击Deployments标签**
+4. **点击Redeploy按钮** (或从最新提交 `6f50ccc` 新建部署)
+5. **等待1-3分钟后验证**: `curl -I https://www.zenconsult.top/th`
+
+如果上述方法不行，请查看完整报告中的详细诊断步骤。

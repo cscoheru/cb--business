@@ -105,27 +105,55 @@
 
 ## 🎯 部署状态
 
-### 生产环境 (已上线)
+### 生产环境状态 (2026-03-11 17:45 更新)
 
-| 服务 | URL | 状态 |
-|------|-----|------|
-| 用户前端 | https://www.zenconsult.top | ✅ HTTP 200 |
-| 管理后台 | https://admin.zenconsult.top | ✅ 运行中 |
-| 后端API | https://api.zenconsult.top | ✅ Healthy |
-| API文档 | https://api.zenconsult.top/docs | ✅ 可访问 |
+| 服务 | URL | 状态 | 说明 |
+|------|-----|------|------|
+| 用户前端 | https://www.zenconsult.top | ⚠️ 部分正常 | 首页/评估正常，国家页面待部署 |
+| 管理后台 | https://admin.zenconsult.top | ✅ 运行中 | - |
+| 后端API | https://api.zenconsult.top | ✅ Healthy | - |
+| API文档 | https://api.zenconsult.top/docs | ✅ 可访问 | - |
 
-### 验证结果 (2026-03-11 15:35)
+### 当前部署问题
+
+**问题**: 国家页面 (`/th`, `/vn` 等) 返回 HTTP 500 "Application error"
+**原因**: 服务端渲染 (SSR) 时API调用导致错误
+**修复**: 已提交 `a8f1ac7` - 将数据获取移至客户端组件
+**状态**: Vercel自动部署未触发，需要手动部署
+
+### 页面状态详情
+
+| 页面类型 | URL | 状态 | 部署版本 |
+|---------|-----|------|---------|
+| 首页 | `/` | ✅ 200 | 最新 |
+| 搜索 | `/search` | ✅ 200 | 最新 |
+| 能力评估 | `/assessment/capability` | ✅ 200 | 最新 |
+| 资源盘点 | `/inventory` | ✅ 200 | 最新 |
+| 兴趣推荐 | `/interests` | ✅ 200 | 最新 |
+| 成长路径 | `/growth-path` | ✅ 200 | 最新 |
+| 主题分类 | `/theme/*` | ✅ 200 | 最新 |
+| **国家门户** | `/th`, `/vn` 等 | ❌ 500 | **待部署修复** |
+
+### 最新Git提交 (待Vercel部署)
+
+| Commit SHA | 时间 | 消息 | 状态 |
+|-----------|------|------|------|
+| `6f50ccc` | 09:35:47 UTC | chore: trigger vercel deployment check | 待部署 |
+| `a8f1ac7` | 09:24:46 UTC | fix: move article fetching to client-side | **关键修复** |
+| `68fd872` | 09:04:58 UTC | fix: add vercel.json config | 当前线上版本 |
+
+### 验证结果 (2026-03-11 17:45)
 
 ```bash
-# 前端验证
-✅ https://www.zenconsult.top - 正常访问
-✅ 搜索功能: /search?q=Shopee - 正常
-✅ 评估页面: /assessment/capability - 正常
-✅ 成长路径: /growth-path - 正常
+# 已验证正常
+✅ https://www.zenconsult.top - 首页正常
+✅ https://www.zenconsult.top/assessment/capability - 评估页面正常
+✅ https://www.zenconsult.top/growth-path - 成长路径正常
+✅ https://www.zenconsult.top/search - 搜索页面正常
 
-# API验证
-✅ GET /health - {"status":"healthy"}
-✅ 新功能已部署: HeroSearch, growth-path
+# 待部署修复后验证
+❌ https://www.zenconsult.top/th - 返回500 (已修复，待部署)
+❌ https://www.zenconsult.top/vn - 返回500 (已修复，待部署)
 ```
 
 ---

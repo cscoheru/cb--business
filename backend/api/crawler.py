@@ -142,3 +142,61 @@ async def get_article(article_id: str, db: AsyncSession = Depends(get_db)):
         is_processed=article.is_processed,
         is_published=article.is_published,
     )
+
+
+@router.post("/trigger")
+async def trigger_all_crawlers():
+    """手动触发所有启用的爬虫"""
+    from scheduler.tasks import execute_crawl
+    from crawler.config import get_enabled_sources
+    
+    sources = get_enabled_sources()
+    results = {}
+    
+    for source_name, config in sources.items():
+        try:
+            result = await execute_crawl(source_name)
+            results[source_name] = result
+        except Exception as e:
+            logger.error(f"触发爬虫 {source_name} 失败: {e}")
+            results[source_name] = {"success": False, "error": str(e)}
+    
+    total_new = sum(r.get("new_count", 0) for r in results.values())
+    
+    return {
+        "success": True,
+        "message": f"爬取完成，共新增 {total_new} 篇文章",
+        "results": results
+    }
+
+
+@router.post("/trigger/{source_name}")
+async def trigger_single_crawler(source_name: str):
+    """手动触发单个爬虫"""
+    from scheduler.tasks import execute_crawl
+    
+    result = await execute_crawl(source_name)
+    
+    return {
+        "success": True,
+        "source": source_name,
+        "result": result
+    }
+
+
+@router.get("/status")
+async def get_crawler_status():
+    """获取爬虫状态"""
+    from crawler.config import CRAWLER_SOURCES
+    
+    return {
+        "sources": [
+            {
+                "name": config["name"],
+                "type": config["type"],
+                "enabled": config.get("enabled", False),
+                "language": config.get("language", "unknown")
+            }
+            for name, config in CRAWLER_SOURCES.items()
+        ]
+    }

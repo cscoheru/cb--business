@@ -6,8 +6,7 @@ WORKDIR /app
 
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
+    PYTHONDONTWRITEBYTECODE=1
 
 # 复制依赖文件
 COPY requirements.txt .

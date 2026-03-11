@@ -65,6 +65,18 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         }
     )
 
+
+# 根路径端点（Railway 和其他平台默认检查）
+@app.get("/")
+async def root():
+    """根路径 - 用于快速健康检查"""
+    return {
+        "service": settings.APP_NAME,
+        "status": "running",
+        "version": "1.0.0"
+    }
+
+
 # 注册路由
 app.include_router(health_router, tags=["health"])
 app.include_router(auth_router)
@@ -81,20 +93,8 @@ async def startup_event():
     """应用启动时执行"""
     logger.info(f"{settings.APP_NAME} starting up...")
 
-    # 尝试连接 Redis（不阻塞启动）
-    try:
-        await redis_client.connect()
-        logger.info("Redis connected")
-    except Exception as e:
-        logger.warning(f"Redis connection failed (non-critical): {e}")
-
-    # 启动爬虫调度器（不阻塞启动）
-    try:
-        from scheduler.scheduler import start_scheduler
-        await start_scheduler()
-        logger.info("Scheduler started")
-    except Exception as e:
-        logger.warning(f"Scheduler startup failed (non-critical): {e}")
+    # 立即返回，不等待任何外部服务
+    # Redis 和调度器在后台异步启动，不阻塞应用启动
 
 # 关闭事件
 @app.on_event("shutdown")

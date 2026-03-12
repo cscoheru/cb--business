@@ -199,6 +199,61 @@ async def search_products(
         return {"error": str(e), "products": []}
 
 
+@router.get("/trending")
+async def get_trending_products(
+    category: str = Query("electronics", description="产品类别"),
+    limit: int = Query(20, ge=1, le=50),
+    force_refresh: bool = Query(False, description="强制刷新缓存")
+):
+    """
+    获取热门产品列表 - 前端兼容接口
+
+    支持的类别: electronics, beauty, home, fashion, food, baby, sports, pets
+    重定向到 categories/{category_id}/trending 端点
+    """
+    if category not in AMAZON_CATEGORIES:
+        return {"category": category, "products": [], "count": 0}
+
+    # 使用 OxylabsClient 获取 Amazon Best Sellers
+    try:
+        from crawler.products.oxylabs_client import OxylabsClient
+
+        client = OxylabsClient()
+
+        products = await client.get_amazon_bestsellers(
+            category=AMAZON_CATEGORIES[category]["amazon_path"],
+            domain="com",
+            limit=limit
+        )
+
+        await client.close()
+
+        # 转换为统一格式（添加fetched_at字段）
+        formatted_products = []
+        for product in products[:limit]:
+            formatted_products.append({
+                "asin": product.get("asin"),
+                "title": product.get("title"),
+                "brand": product.get("brand"),
+                "price": product.get("price"),
+                "rating": product.get("rating"),
+                "reviews_count": product.get("reviews_count", 0),
+                "image": product.get("images", [{}])[0].get("url") if product.get("images") else None,
+                "url": f"https://www.amazon.com/dp/{product.get('asin')}",
+                "fetched_at": product.get("fetched_at") or None
+            })
+
+        return {
+            "category": category,
+            "products": formatted_products,
+            "count": len(formatted_products)
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to fetch trending products: {e}")
+        return {"category": category, "products": [], "count": 0, "error": str(e)}
+
+
 @router.get("/platforms")
 async def get_platforms():
     """获取支持的电商平台列表"""

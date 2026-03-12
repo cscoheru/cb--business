@@ -6,7 +6,8 @@ WORKDIR /app
 
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8000
 
 # 复制依赖文件
 COPY requirements.txt .
@@ -20,5 +21,5 @@ COPY . .
 # 暴露端口
 EXPOSE 8000
 
-# 启动命令
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+# 启动命令 - 使用 main.py 并禁用调度器自动启动
+CMD ["python", "-c", "import uvicorn; uvicorn.run('api:app', host='0.0.0.0', port=int(__import__('os').getenv('PORT', 8000)))"]

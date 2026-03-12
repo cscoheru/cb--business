@@ -101,6 +101,15 @@ async def root():
     }
 
 
+@app.get("/test")
+async def test():
+    """测试端点 - 验证路由是否正常工作"""
+    return {
+        "message": "Routes are working!",
+        "timestamp": "2026-03-12"
+    }
+
+
 # 注册路由
 app.include_router(health_router, tags=["health"])
 app.include_router(auth_router)

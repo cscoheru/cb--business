@@ -14,6 +14,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/products", tags=["products"])
 
+# 可选的 Oxylabs 集成
+try:
+    from crawler.products.oxylabs_client import OxylabsClient
+    OXYLABS_AVAILABLE = True
+    logger.info("Oxylabs integration enabled")
+except ImportError as e:
+    OXYLABS_AVAILABLE = False
+    logger.warning(f"Oxylabs not available: {e}")
+
 
 @router.get("/trending")
 async def get_trending_products(
@@ -309,7 +318,12 @@ async def get_amazon_product_oxylabs(
 
     示例: GET /api/v1/products/oxylabs/product/B07FZ8S74R
     """
-    from crawler.products.oxylabs_client import OxylabsClient
+    if not OXYLABS_AVAILABLE:
+        return {
+            "success": False,
+            "error": "Oxylabs integration not available",
+            "asin": asin
+        }
 
     client = OxylabsClient()
 
@@ -360,7 +374,12 @@ async def search_amazon_oxylabs(
 
     示例: GET /api/v1/products/oxylabs/search?query=wireless+charger
     """
-    from crawler.products.oxylabs_client import OxylabsClient
+    if not OXYLABS_AVAILABLE:
+        return {
+            "success": False,
+            "error": "Oxylabs integration not available",
+            "products": []
+        }
 
     client = OxylabsClient()
 
@@ -411,7 +430,12 @@ async def get_amazon_bestsellers_oxylabs(
 
     示例: GET /api/v1/products/oxylabs/bestsellers?category=electronics
     """
-    from crawler.products.oxylabs_client import OxylabsClient
+    if not OXYLABS_AVAILABLE:
+        return {
+            "success": False,
+            "error": "Oxylabs integration not available",
+            "products": []
+        }
 
     client = OxylabsClient()
 

@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # FastAPI 应用
+  api:
+    build: .
+    container_name: cb-business-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://cbuser:${POSTGRES_PASSWORD}@postgres:5432/cbdb
+      - REDIS_URL=redis://redis:6379/0
+      - OXYLABS_USERNAME=${OXYLABS_USERNAME}
+      - OXYLABS_PASSWORD=${OXYLABS_PASSWORD}
+      - ZHIPU_AI_KEY=${ZHIPU_AI_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - cb-network
+      - docker_internal  # 连接到 nginx-gateway 所在的网络
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: cb-business-postgres
+    # 不暴露到主机，仅内部网络访问
+    environment:
+      - POSTGRES_USER=cbuser
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=cbdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cbuser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - cb-network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: cb-business-redis
+    # 不暴露到主机，仅内部网络访问
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - cb-network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  cb-network:
+    name: cb-network
+    driver: bridge
+  docker_internal:
+    external: true  # 使用现有的 docker_internal 网络

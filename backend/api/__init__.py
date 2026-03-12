@@ -27,6 +27,7 @@ from api.lazada import router as lazada_router
 from api.trends import router as trends_router
 from api.opportunities import router as opportunities_router
 from api.social import router as social_router
+from api.keywords import router as keywords_router
 
 
 # 创建FastAPI应用
@@ -125,6 +126,7 @@ app.include_router(lazada_router)
 app.include_router(trends_router)
 app.include_router(opportunities_router)
 app.include_router(social_router)
+app.include_router(keywords_router)
 
 # 可选的 crawler 路由（依赖可能未安装）
 try:
@@ -133,6 +135,14 @@ try:
     logger.info("Crawler router loaded")
 except ImportError as e:
     logger.warning(f"Crawler router not available: {e}")
+
+# 添加同步版本的爬虫路由（作为备用）
+try:
+    from api.crawler_sync import router as crawler_sync_router
+    app.include_router(crawler_sync_router)
+    logger.info("Crawler sync router loaded")
+except ImportError as e:
+    logger.warning(f"Crawler sync router not available: {e}")
 
 # 启动事件
 @app.on_event("startup")

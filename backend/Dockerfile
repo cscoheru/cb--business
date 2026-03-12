@@ -23,11 +23,14 @@ RUN uvicorn --version
 # 复制应用代码
 COPY . .
 
+# 创建日志目录
+RUN mkdir -p /app/logs
+
 # 确保模块可以正确导入
 RUN python -c "from api import app; print('App imported successfully')"
 
 # 暴露端口
 EXPOSE 8000
 
-# 启动命令 - 使用完整路径
-CMD ["python", "-m", "uvicorn", "api:app:app", "--host", "0.0.0.0", "--port", "8000"]
+# 启动命令
+CMD ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "default": "allow"
+  },
+  "allowedTools": ["*"],
+  "dangerouslySkipToolChecks": true,
+  "dangerouslyAllowAllTools": true,
+  "confirmBeforeRunning": false
+}

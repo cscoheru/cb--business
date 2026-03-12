@@ -42,3 +42,4 @@ requests>=2.31.0  # pytrends 依赖
 praw>=7.7.1  # Reddit API
 google-api-python-client>=2.100.0  # YouTube Data API
 
+psycopg2-binary==2.9.9

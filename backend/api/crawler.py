@@ -204,39 +204,54 @@ async def get_crawler_status():
 
 @router.post("/reprocess")
 async def reprocess_articles(db: AsyncSession = Depends(get_db)):
-    """重新处理所有 region='global' 的文章，使用改进的分类器"""
+    """重新处理所有文章，更新缺失的country字段和其他分类"""
     from crawler.processors.ai_processor import MockAIProcessor
     import json
 
     processor = MockAIProcessor()
 
-    # 查找所有 region='global' 的文章
+    # 查找所有需要处理的文章（country为null的文章优先）
     result = await db.execute(
-        select(Article).where(Article.region == 'global')
+        select(Article).where(
+            (Article.country == None) | (Article.region == 'global')
+        ).limit(200)  # 限制每次处理数量，避免超时
     )
     articles = result.scalars().all()
 
     updated_count = 0
     for article in articles:
-        # 重新分析文章
-        article_data = {
-            "title": article.title,
-            "summary": article.summary or "",
-            "full_content": article.full_content or "",
-            "source": article.source
-        }
+        try:
+            # 重新分析文章
+            article_data = {
+                "title": article.title,
+                "summary": article.summary or "",
+                "full_content": article.full_content or "",
+                "source": article.source
+            }
 
-        analysis = await processor.analyze_article(article_data)
+            analysis = await processor.analyze_article(article_data)
 
-        # 更新字段
-        article.region = analysis.get("region", "global")
-        article.content_theme = analysis.get("content_theme", "guide")
-        article.platform = analysis.get("platform", "other")
-        article.risk_level = analysis.get("risk_level", "low")
-        article.opportunity_score = analysis.get("opportunity_score", 0.5)
-        article.tags = json.dumps(analysis.get("tags", ["跨境电商"]))
+            # 更新字段 - 添加country字段
+            article.region = analysis.get("region", article.region)
+            article.country = analysis.get("country", article.country)  # ✅ 添加country更新
+            article.content_theme = analysis.get("content_theme", article.content_theme)
+            article.platform = analysis.get("platform", article.platform)
+            article.risk_level = analysis.get("risk_level", article.risk_level)
+            article.opportunity_score = analysis.get("opportunity_score", article.opportunity_score)
 
-        updated_count += 1
+            # 只在有新标签时才更新tags
+            new_tags = analysis.get("tags", ["跨境电商"])
+            try:
+                existing_tags = json.loads(article.tags) if article.tags else []
+                combined_tags = list(set(existing_tags + new_tags))
+                article.tags = json.dumps(combined_tags)
+            except:
+                article.tags = json.dumps(new_tags)
+
+            updated_count += 1
+        except Exception as e:
+            logger.error(f"Failed to process article {article.id}: {e}")
+            continue
 
     # 提交更改
     await db.commit()
@@ -246,4 +261,40 @@ async def reprocess_articles(db: AsyncSession = Depends(get_db)):
         "message": f"成功重新处理 {updated_count} 篇文章",
         "updated_count": updated_count,
         "total_articles": len(articles)
+    }
+
+
+@router.get("/reprocess/status")
+async def reprocess_status(db: AsyncSession = Depends(get_db)):
+    """检查文章处理状态"""
+    # 统计总数
+    count_result = await db.execute(select(func.count(Article.id)))
+    total = count_result.scalar() or 0
+
+    # 统计country为null的文章数
+    null_country_result = await db.execute(
+        select(func.count(Article.id)).where(Article.country == None)
+    )
+    null_country = null_country_result.scalar() or 0
+
+    # 统计region为global的文章数
+    global_region_result = await db.execute(
+        select(func.count(Article.id)).where(Article.region == 'global')
+    )
+    global_region = global_region_result.scalar() or 0
+
+    # 按region统计
+    region_stats = {}
+    for region in ['southeast_asia', 'north_america', 'latin_america', 'global']:
+        result = await db.execute(
+            select(func.count(Article.id)).where(Article.region == region)
+        )
+        region_stats[region] = result.scalar() or 0
+
+    return {
+        "total_articles": total,
+        "null_country_count": null_country,
+        "global_region_count": global_region,
+        "region_breakdown": region_stats,
+        "needs_reprocess": null_country + global_region
     }

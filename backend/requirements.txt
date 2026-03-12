@@ -28,6 +28,8 @@ APScheduler>=3.10.4
 beautifulsoup4>=4.12.2
 lxml>=4.9.3
 zhipuai>=2.1.0  # 智谱AI - 文章内容分析
+playwright>=1.40.0  # 浏览器自动化 - 用于爬取动态页面
+playwright-stealth>=1.0.5  # 反检测插件
 
 # 工具
 qrcode>=7.4.2

@@ -173,3 +173,32 @@ async def shutdown_event():
         pass
 
     logger.info("Shutdown complete")
+
+
+# 启动服务器 - 当使用 "python -m api" 时执行
+if __name__ == "__main__":
+    import uvicorn
+    import os
+
+    port = int(os.getenv("PORT", 8000))
+
+    # 在后台启动调度器（非阻塞）
+    import threading
+
+    def run_scheduler_async():
+        try:
+            asyncio.run(start_scheduler())
+        except Exception as e:
+            logger.error(f"Scheduler startup failed: {e}")
+
+    scheduler_thread = threading.Thread(target=run_scheduler_async, daemon=True)
+    scheduler_thread.start()
+
+    logger.info(f"🚀 Starting server on port {port}")
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=port,
+        log_level="info"
+    )

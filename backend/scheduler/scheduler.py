@@ -6,16 +6,17 @@ from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.asyncio import AsyncIOExecutor
 
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# 任务存储配置（持久化任务状态）
+# 任务存储配置（Railway兼容：使用内存存储而不是SQLite）
+# Railway的文件系统可能不支持SQLite写入
 jobstores = {
-    'default': SQLAlchemyJobStore(url=f'sqlite:///{settings.BASE_DIR}/scheduler_jobs.sqlite')
+    'default': MemoryJobStore()
 }
 
 # 执行器配置

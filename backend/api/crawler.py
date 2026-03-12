@@ -322,3 +322,55 @@ async def reprocess_status(db: AsyncSession = Depends(get_db)):
         "region_breakdown": region_stats,
         "needs_reprocess": null_country + global_region
     }
+
+
+@router.get("/sources/by-country")
+async def get_sources_by_country(db: AsyncSession = Depends(get_db)):
+    """获取每个国家的文章来源统计"""
+    from sqlalchemy import func
+
+    # 查询所有有country字段的文章
+    result = await db.execute(
+        select(
+            Article.country,
+            Article.source,
+            Article.platform,
+            func.count(Article.id).label('count')
+        )
+        .where(Article.country != None)
+        .group_by(Article.country, Article.source, Article.platform)
+        .order_by(Article.country, func.count(Article.id).desc())
+    )
+
+    rows = result.all()
+
+    # 组织数据结构: {country: {source: {platforms: [], total_count: n}}}
+    country_sources: dict = {}
+
+    for row in rows:
+        country = row.country or "unknown"
+        source = row.source
+        platform = row.platform
+        count = row.count
+
+        if country not in country_sources:
+            country_sources[country] = {}
+
+        if source not in country_sources[country]:
+            country_sources[country][source] = {
+                "platforms": set(),
+                "total_count": 0
+            }
+
+        country_sources[country][source]["platforms"].add(platform)
+        country_sources[country][source]["total_count"] += count
+
+    # 转换sets为lists并添加详细信息
+    for country in country_sources:
+        for source in country_sources[country]:
+            country_sources[country][source]["platforms"] = list(country_sources[country][source]["platforms"])
+
+    return {
+        "country_sources": country_sources,
+        "total_countries": len(country_sources)
+    }

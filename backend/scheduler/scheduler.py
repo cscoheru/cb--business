@@ -40,6 +40,16 @@ scheduler_config = {
 scheduler = AsyncIOScheduler(**scheduler_config)
 
 
+# 模块级任务函数，可以被APScheduler序列化
+async def _crawl_job_wrapper(source_name: str, source_display_name: str):
+    """包装爬虫任务函数"""
+    from scheduler.tasks import execute_crawl
+    logger.info(f"🔄 开始爬取 {source_display_name}...")
+    result = await execute_crawl(source_name)
+    logger.info(f"✅ {source_display_name} 爬取完成: {result.get('new_count', 0)} 篇新文章")
+    return result
+
+
 async def start_scheduler():
     """启动调度器"""
     try:
@@ -54,17 +64,13 @@ async def start_scheduler():
         # 为每个数据源创建定时任务
         for source_name, config in sources.items():
             try:
-                # 创建动态任务函数
-                async def crawl_job():
-                    from scheduler.tasks import execute_crawl
-                    logger.info(f"🔄 开始爬取 {config['name']}...")
-                    result = await execute_crawl(source_name)
-                    logger.info(f"✅ {config['name']} 爬取完成: {result.get('new_count', 0)} 篇新文章")
-                    return result
+                # 使用偏函数传递参数
+                from functools import partial
+                job_func = partial(_crawl_job_wrapper, source_name, config['name'])
 
                 # 添加定时任务 - 每30分钟爬取一次
                 scheduler.add_job(
-                    crawl_job,
+                    job_func,
                     trigger=IntervalTrigger(minutes=30),
                     id=f'{source_name}_crawl',
                     name=f"{config['name']} 定时爬取",

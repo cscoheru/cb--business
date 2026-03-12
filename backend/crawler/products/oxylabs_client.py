@@ -137,6 +137,10 @@ class OxylabsClient:
             content = data["results"][0].get("content", {})
             # 返回 organic 搜索结果（自然排名，非广告）
             if isinstance(content, dict):
+                # content 结构: {results: {organic: [...], amazons_choices: [...]}}
+                results_dict = content.get("results", {})
+                if isinstance(results_dict, dict):
+                    return results_dict.get("organic", [])
                 return content.get("organic", [])
             elif isinstance(content, list):
                 return content
@@ -193,14 +197,25 @@ class OxylabsClient:
             if data.get("results"):
                 content = data["results"][0].get("content", {})
                 if isinstance(content, dict):
-                    # 合并 organic 和 amazons_choices 结果
-                    organic = content.get("organic", [])
-                    choices = content.get("amazons_choices", [])
-                    # 优先返回 organic，如果不够则补充 choices
-                    results = organic[:limit]
-                    if len(results) < limit:
-                        results.extend(choices[:limit - len(results)])
-                    return results
+                    # content 结构: {results: {organic: [...], amazons_choices: [...]}}
+                    results_dict = content.get("results", {})
+                    if isinstance(results_dict, dict):
+                        # 合并 organic 和 amazons_choices 结果
+                        organic = results_dict.get("organic", [])
+                        choices = results_dict.get("amazons_choices", [])
+                        # 优先返回 organic，如果不够则补充 choices
+                        results_list = organic[:limit]
+                        if len(results_list) < limit:
+                            results_list.extend(choices[:limit - len(results_list)])
+                        return results_list
+                    else:
+                        # 兼容旧格式
+                        organic = content.get("organic", [])
+                        choices = content.get("amazons_choices", [])
+                        results_list = organic[:limit]
+                        if len(results_list) < limit:
+                            results_list.extend(choices[:limit - len(results_list)])
+                        return results_list
                 elif isinstance(content, list):
                     return content[:limit]
         except Exception as e:

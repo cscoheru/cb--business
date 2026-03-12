@@ -188,6 +188,24 @@ async def trigger_single_crawler(source_name: str):
 async def get_crawler_status():
     """获取爬虫状态"""
     from crawler.config import CRAWLER_SOURCES
+    import scheduler.scheduler
+
+    # 获取调度器状态
+    scheduler_status = {
+        "running": scheduler.scheduler.running if scheduler.scheduler else False,
+        "jobs": []
+    }
+
+    if scheduler.scheduler and scheduler.scheduler.running:
+        jobs = scheduler.scheduler.get_jobs()
+        scheduler_status["jobs"] = [
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run_time": str(job.next_run_time) if job.next_run_time else None,
+            }
+            for job in jobs
+        ]
 
     return {
         "sources": [
@@ -198,7 +216,31 @@ async def get_crawler_status():
                 "language": config.get("language", "unknown")
             }
             for name, config in CRAWLER_SOURCES.items()
-        ]
+        ],
+        "scheduler": scheduler_status
+    }
+
+
+@router.get("/scheduler/logs")
+async def get_scheduler_logs():
+    """获取最近的调度器日志（从内存中获取最近的日志）"""
+    import logging
+    from datetime import datetime, timedelta
+
+    # 获取最近的日志记录
+    log_handler = logging.getLogger().handlers[0] if logging.getLogger().handlers else None
+    if log_handler and hasattr(log_handler, 'buffer'):
+        # 这里可以返回最近的日志，但简单实现只返回状态
+        return {
+            "message": "Logs available in Railway dashboard",
+            "check_url": "https://railway.app",
+            "log_file": "scheduler_jobs.sqlite"
+        }
+
+    return {
+        "message": "Scheduler logs",
+        "running": scheduler.scheduler.running if scheduler.scheduler else False,
+        "timestamp": datetime.now().isoformat()
     }
 
 

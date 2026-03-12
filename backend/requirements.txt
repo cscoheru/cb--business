@@ -36,3 +36,7 @@ qrcode>=7.4.2
 cryptography>=41.0.7
 sqlalchemy-utils>=0.41.1
 
+# 趋势分析
+pytrends>=4.9.2  # Google Trends 非官方 API
+requests>=2.31.0  # pytrends 依赖
+

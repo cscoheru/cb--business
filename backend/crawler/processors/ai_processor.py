@@ -153,6 +153,50 @@ class MockAIProcessor:
         "TechCrunch": "global",
     }
 
+    # 来源与国家的映射关系
+    SOURCE_COUNTRY_MAP = {
+        "Tech in Asia": "sg",  # 新加坡
+        "e27": "sg",  # 新加坡
+        "雨果网": "cn",  # 中国
+        "亿恩网": "cn",  # 中国
+        "Mercopress": "br",  # 巴西
+        "Retail Dive": "us",  # 美国
+        "Digital Commerce 360": "us",  # 美国
+        "EcommerceBytes": "us",  # 美国
+        "PYMNTS": "us",  # 美国
+        "Amazon Seller News": "us",  # 美国
+        "eBay Seller News": "us",  # 美国
+        "PayPal Blog": "us",  # 美国
+        "Stripe Blog": "us",  # 美国
+        "eMarketer": "us",  # 美国
+        "TechCrunch": "us",  # 美国
+    }
+
+    # 区域内的国家关键词映射
+    REGION_COUNTRY_KEYWORDS = {
+        "southeast_asia": {
+            "thailand": "th", "thai": "th", "bangkok": "th",
+            "vietnam": "vn", "viet": "vn", "hanoi": "vn", "ho chi minh": "vn",
+            "singapore": "sg", "singaporean": "sg",
+            "malaysia": "my", "malaysian": "my", "kuala lumpur": "my",
+            "indonesia": "id", "indonesian": "id", "jakarta": "id",
+            "philippines": "ph", "philippine": "ph", "manila": "ph",
+        },
+        "north_america": {
+            "united states": "us", "usa": "us", "u.s.": "us", "america": "us", "us-market": "us",
+            "canada": "ca", "canadian": "ca",
+            "mexico": "mx", "mexican": "mx",
+        },
+        "latin_america": {
+            "brazil": "br", "brazilian": "br", "brasil": "br", "são paulo": "br", "rio": "br",
+            "mexico": "mx", "mexican": "mx",
+            "colombia": "co", "colombian": "co",
+            "argentina": "ar", "argentinian": "ar",
+            "chile": "cl",
+            "peru": "pe",
+        }
+    }
+
     # 扩展的关键词列表
     SOUTHEAST_ASIA_KEYWORDS = [
         "southeast asia", "sea", "asean",
@@ -193,6 +237,12 @@ class MockAIProcessor:
         # 如果来源无法确定，通过关键词判断
         if region == "global":
             region = self._detect_region(text_content)
+
+        # 推断国家代码
+        country = self.SOURCE_COUNTRY_MAP.get(source)
+        if not country and region != "global":
+            # 如果来源没有映射，通过关键词推断国家
+            country = self._detect_country(text_content, region)
 
         # 主题判断 - 扩展关键词
         if any(word in text_content for word in ["risk", "warning", "alert", "danger", "ban", "fraud", "scam", "lawsuit", "crime"]):
@@ -241,12 +291,31 @@ class MockAIProcessor:
         return {
             "content_theme": content_theme,
             "region": region,
+            "country": country,  # ✅ 添加country字段
             "platform": platform,
             "tags": list(set(tags)),  # 去重
             "risk_level": risk_level,
             "opportunity_score": 0.7 if content_theme == "opportunity" else (0.6 if region != "global" else 0.4),
             "summary_cn": summary[:100] if summary else title[:100]
         }
+
+    def _detect_country(self, text: str, region: str) -> Optional[str]:
+        """通过关键词检测国家代码"""
+        if region not in self.REGION_COUNTRY_KEYWORDS:
+            return None
+
+        country_keywords = self.REGION_COUNTRY_KEYWORDS[region]
+        for keyword, code in country_keywords.items():
+            if keyword in text:
+                return code
+
+        # 如果没有检测到具体国家，返回区域的默认国家
+        defaults = {
+            "southeast_asia": "th",  # 泰国作为东南亚默认
+            "north_america": "us",  # 美国作为北美默认
+            "latin_america": "br",  # 巴西作为拉美默认
+        }
+        return defaults.get(region)
 
     def _detect_region(self, text: str) -> str:
         """通过关键词检测地区"""

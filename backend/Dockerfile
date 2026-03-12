@@ -21,5 +21,5 @@ COPY . .
 # 暴露端口
 EXPOSE 8000
 
-# 启动命令 - 使用调试脚本
-CMD ["python", "start_debug.py"]
+# 启动命令 - 直接使用uvicorn命令
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "debug"]

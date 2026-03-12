@@ -2,8 +2,8 @@
 builder = "DOCKERFILE"
 
 [deploy]
-# 完全禁用健康检查，让应用自己决定是否健康
-# Railway 的健康检查在应用启动时太早执行
-healthcheckPath = ""
-healthcheckTimeout = 0
+# 启用健康检查
+healthcheckPath = "/health"
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

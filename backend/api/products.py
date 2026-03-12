@@ -251,7 +251,7 @@ async def trigger_amazon_crawl(
     category: str = Query(None, description="分类 (electronics, home, fashion, etc.)"),
     max_products: int = Query(20, description="最大商品数量")
 ):
-    """手动触发Amazon Best Sellers商品爬取"""
+    """手动触发Amazon Best Sellers商品爬取 (Playwright - Railway 不可用)"""
     from crawler.products.amazon_bestsellers import AmazonBestSellersCrawler
 
     try:
@@ -289,10 +289,163 @@ async def trigger_amazon_crawl(
         }
 
     except Exception as e:
-        logger = logging.getLogger(__name__)
         logger.error(f"Amazon爬取失败: {e}")
         return {
             "success": False,
             "error": str(e),
             "products": []
         }
+
+
+# ==================== Oxylabs API 端点 (推荐) ====================
+
+@router.get("/oxylabs/product/{asin}")
+async def get_amazon_product_oxylabs(
+    asin: str,
+    domain: str = Query("com", description="Amazon 域名 (com, co.uk, de, jp)"),
+):
+    """
+    使用 Oxylabs API 获取 Amazon 产品详情
+
+    示例: GET /api/v1/products/oxylabs/product/B07FZ8S74R
+    """
+    from crawler.products.oxylabs_client import OxylabsClient
+
+    client = OxylabsClient()
+
+    try:
+        product = await client.get_amazon_product(asin, domain=domain)
+
+        if not product:
+            return {
+                "success": False,
+                "error": "Product not found",
+                "asin": asin
+            }
+
+        return {
+            "success": True,
+            "asin": product.get("asin"),
+            "title": product.get("title"),
+            "brand": product.get("brand"),
+            "price": product.get("price"),
+            "rating": product.get("rating"),
+            "reviews_count": product.get("reviews_count"),
+            "images": product.get("images", [])[:5],  # 最多5张图
+            "bullet_points": product.get("bullet_points", [])[:3],  # 最多3条
+            "stock": product.get("stock"),
+            "url": product.get("url"),
+        }
+
+    except Exception as e:
+        logger.error(f"Oxylabs API 错误: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "asin": asin
+        }
+    finally:
+        await client.close()
+
+
+@router.get("/oxylabs/search")
+async def search_amazon_oxylabs(
+    query: str = Query(..., description="搜索关键词"),
+    domain: str = Query("com", description="Amazon 域名"),
+    category: str = Query("aps", description="分类 ID"),
+    limit: int = Query(10, ge=1, le=50),
+):
+    """
+    使用 Oxylabs API 搜索 Amazon 产品
+
+    示例: GET /api/v1/products/oxylabs/search?query=wireless+charger
+    """
+    from crawler.products.oxylabs_client import OxylabsClient
+
+    client = OxylabsClient()
+
+    try:
+        products = await client.search_amazon(
+            query=query,
+            domain=domain,
+            category=category,
+            limit=limit
+        )
+
+        return {
+            "success": True,
+            "query": query,
+            "count": len(products),
+            "products": [
+                {
+                    "asin": p.get("asin"),
+                    "title": p.get("title"),
+                    "price": p.get("price"),
+                    "rating": p.get("rating"),
+                    "reviews_count": p.get("reviews_count"),
+                    "url": p.get("url"),
+                }
+                for p in products
+            ]
+        }
+
+    except Exception as e:
+        logger.error(f"Oxylabs 搜索错误: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "products": []
+        }
+    finally:
+        await client.close()
+
+
+@router.get("/oxylabs/bestsellers")
+async def get_amazon_bestsellers_oxylabs(
+    category: str = Query("electronics", description="分类名称"),
+    domain: str = Query("com", description="Amazon 域名"),
+    limit: int = Query(10, ge=1, le=50),
+):
+    """
+    使用 Oxylabs API 获取 Amazon Best Sellers
+
+    示例: GET /api/v1/products/oxylabs/bestsellers?category=electronics
+    """
+    from crawler.products.oxylabs_client import OxylabsClient
+
+    client = OxylabsClient()
+
+    try:
+        products = await client.get_amazon_bestsellers(
+            category=category,
+            domain=domain,
+            limit=limit
+        )
+
+        return {
+            "success": True,
+            "category": category,
+            "domain": domain,
+            "count": len(products),
+            "products": [
+                {
+                    "asin": p.get("asin"),
+                    "title": p.get("title"),
+                    "price": p.get("price"),
+                    "rating": p.get("rating"),
+                    "reviews_count": p.get("reviews_count"),
+                    "url": p.get("url"),
+                }
+                for p in products
+            ]
+        }
+
+    except Exception as e:
+        logger.error(f"Oxylabs Best Sellers 错误: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "products": []
+        }
+    finally:
+        await client.close()

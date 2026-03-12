@@ -1,6 +1,6 @@
 # api/keywords.py
 """关键词 API - 从文章中动态提取关键词"""
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from typing import List, Dict, Any

@@ -28,6 +28,7 @@ from api.trends import router as trends_router
 from api.opportunities import router as opportunities_router
 from api.social import router as social_router
 from api.keywords import router as keywords_router
+from api.products_real import router as products_real_router
 
 
 # 创建FastAPI应用
@@ -122,6 +123,7 @@ app.include_router(admin_router)
 app.include_router(assessments_router)
 app.include_router(search_router)
 app.include_router(products_router)
+app.include_router(products_real_router)  # Override /categories with real Oxylabs data
 app.include_router(lazada_router)
 app.include_router(trends_router)
 app.include_router(opportunities_router)

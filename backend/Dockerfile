@@ -9,6 +9,10 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000
 
+# Railway 需要 PORT 环境变量
+ENV PYTHONPATH=/app \
+    PORT=8000
+
 # 复制依赖文件
 COPY requirements.txt .
 

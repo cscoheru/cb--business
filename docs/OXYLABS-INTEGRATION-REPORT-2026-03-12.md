@@ -201,3 +201,5 @@ curl -X GET "https://api.zenconsult.top/api/v1/products/oxylabs/bestsellers?cate
 
 **生成时间**: 2026-03-12
 **有效期**: 30天 (试用期) + 长期方案决策
+## Deployment Check
+- Deployed: 2026年 3月12日 星期四 13时32分35秒 CST

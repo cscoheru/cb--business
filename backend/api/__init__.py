@@ -122,8 +122,8 @@ app.include_router(payments_router)
 app.include_router(admin_router)
 app.include_router(assessments_router)
 app.include_router(search_router)
-app.include_router(products_router)
-app.include_router(products_real_router)  # Override /categories with real Oxylabs data
+# app.include_router(products_router)  # Disabled - using products_real_router instead
+app.include_router(products_real_router)
 app.include_router(lazada_router)
 app.include_router(trends_router)
 app.include_router(opportunities_router)

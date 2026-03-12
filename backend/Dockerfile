@@ -21,4 +21,4 @@ COPY . .
 EXPOSE 8000
 
 # 启动命令
-CMD ["python", "-m", "api"]
+CMD ["python", "main.py"]

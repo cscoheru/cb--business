@@ -41,12 +41,15 @@ default_origins = [
     "http://localhost:3001",  # 备用开发端口
 ]
 
-if settings.ALLOWED_ORIGINS:
+# 检查环境变量是否有效（非空且不是通配符）
+if settings.ALLOWED_ORIGINS and settings.ALLOWED_ORIGINS.strip() and settings.ALLOWED_ORIGINS != "*":
     origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+    logger.info(f"Using ALLOWED_ORIGINS from environment: {origins}")
 else:
     origins = default_origins
+    logger.info(f"Using default CORS origins: {origins}")
 
-logger.info(f"CORS allowed origins: {origins}")
+logger.info(f"Final CORS allowed origins: {origins}")
 
 app.add_middleware(
     CORSMiddleware,

@@ -23,6 +23,7 @@ from api.payments import router as payments_router
 from api.assessments import router as assessments_router
 from api.search import router as search_router
 from api.products import router as products_router
+from api.lazada import router as lazada_router
 
 
 # 创建FastAPI应用
@@ -108,6 +109,7 @@ app.include_router(admin_router)
 app.include_router(assessments_router)
 app.include_router(search_router)
 app.include_router(products_router)
+app.include_router(lazada_router)
 
 # 可选的 crawler 路由（依赖可能未安装）
 try:

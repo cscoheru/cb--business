@@ -62,6 +62,14 @@ class Settings(BaseSettings):
     # 智谱AI
     ZHIPU_AI_KEY: str = ""
 
+    # Lazada Open Platform API
+    LAZADA_APP_KEY: str = ""
+    LAZADA_APP_SECRET: str = ""
+    LAZADA_ACCESS_TOKEN: str = ""
+    LAZADA_REFRESH_TOKEN: str = ""
+    LAZADA_REDIRECT_URI: str = "https://www.zenconsult.top/api/v1/lazada/callback"
+    LAZADA_DEFAULT_COUNTRY: str = "th"  # th, vn, my, sg, id, ph
+
     # 支付回调URL
     PAYMENT_BASE_URL: str = "https://api.zenconsult.top"  # 生产环境URL
 

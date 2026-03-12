@@ -219,15 +219,51 @@ async def get_category_trending(
         # 转换为统一格式
         formatted_products = []
         for product in products[:limit]:
+            if not product or not isinstance(product, dict):
+                continue
+
+            # 处理品牌字段 - 搜索API返回 manufacturer 而不是 brand
+            brand = product.get("brand") or product.get("manufacturer") or "N/A"
+
+            # 处理价格 - 可能是数字或字符串
+            price = product.get("price")
+            if isinstance(price, (int, float)):
+                price = float(price)
+            else:
+                price = None
+
+            # 处理评分
+            rating = product.get("rating")
+            if isinstance(rating, (int, float)):
+                rating = float(rating)
+            else:
+                rating = None
+
+            # 处理评论数
+            reviews_count = product.get("reviews_count", 0)
+            if isinstance(reviews_count, str):
+                # 处理 "10K+" 这样的格式
+                reviews_count = 0
+            elif not isinstance(reviews_count, int):
+                reviews_count = 0
+
+            # 构建产品URL
+            url = product.get("url")
+            if url and not url.startswith("http"):
+                # 相对URL转绝对URL
+                url = f"https://www.amazon.com{url}"
+            else:
+                url = f"https://www.amazon.com/dp/{product.get('asin', '')}"
+
             formatted_products.append({
-                "asin": product.get("asin"),
-                "title": product.get("title"),
-                "brand": product.get("brand"),
-                "price": product.get("price"),
-                "rating": product.get("rating"),
-                "reviews_count": product.get("reviews_count", 0),
-                "image": product.get("images", [{}])[0].get("url") if product.get("images") else None,
-                "url": f"https://www.amazon.com/dp/{product.get('asin')}"
+                "asin": product.get("asin", ""),
+                "title": product.get("title", "N/A"),
+                "brand": brand,
+                "price": price,
+                "rating": rating,
+                "reviews_count": reviews_count,
+                "image": None,  # 搜索API不返回图片，后续可通过产品详情API获取
+                "url": url
             })
 
         return {
@@ -266,14 +302,48 @@ async def search_products(
         # 转换为统一格式
         formatted_products = []
         for product in products:
+            if not product or not isinstance(product, dict):
+                continue
+
+            # 处理品牌字段
+            brand = product.get("brand") or product.get("manufacturer") or "N/A"
+
+            # 处理价格
+            price = product.get("price")
+            if isinstance(price, (int, float)):
+                price = float(price)
+            else:
+                price = None
+
+            # 处理评分
+            rating = product.get("rating")
+            if isinstance(rating, (int, float)):
+                rating = float(rating)
+            else:
+                rating = None
+
+            # 处理评论数
+            reviews_count = product.get("reviews_count", 0)
+            if isinstance(reviews_count, str):
+                reviews_count = 0
+            elif not isinstance(reviews_count, int):
+                reviews_count = 0
+
+            # 构建产品URL
+            url = product.get("url")
+            if url and not url.startswith("http"):
+                url = f"https://www.amazon.com{url}"
+            else:
+                url = f"https://www.amazon.com/dp/{product.get('asin', '')}"
+
             formatted_products.append({
-                "asin": product.get("asin"),
-                "title": product.get("title"),
-                "brand": product.get("brand"),
-                "price": product.get("price"),
-                "rating": product.get("rating"),
-                "reviews_count": product.get("reviews_count", 0),
-                "url": f"https://www.amazon.com/dp/{product.get('asin')}"
+                "asin": product.get("asin", ""),
+                "title": product.get("title", "N/A"),
+                "brand": brand,
+                "price": price,
+                "rating": rating,
+                "reviews_count": reviews_count,
+                "url": url
             })
 
         return {
@@ -319,15 +389,49 @@ async def get_trending_products(
         # 转换为统一格式（添加fetched_at字段）
         formatted_products = []
         for product in products[:limit]:
+            if not product or not isinstance(product, dict):
+                continue
+
+            # 处理品牌字段
+            brand = product.get("brand") or product.get("manufacturer") or "N/A"
+
+            # 处理价格
+            price = product.get("price")
+            if isinstance(price, (int, float)):
+                price = float(price)
+            else:
+                price = None
+
+            # 处理评分
+            rating = product.get("rating")
+            if isinstance(rating, (int, float)):
+                rating = float(rating)
+            else:
+                rating = None
+
+            # 处理评论数
+            reviews_count = product.get("reviews_count", 0)
+            if isinstance(reviews_count, str):
+                reviews_count = 0
+            elif not isinstance(reviews_count, int):
+                reviews_count = 0
+
+            # 构建产品URL
+            url = product.get("url")
+            if url and not url.startswith("http"):
+                url = f"https://www.amazon.com{url}"
+            else:
+                url = f"https://www.amazon.com/dp/{product.get('asin', '')}"
+
             formatted_products.append({
-                "asin": product.get("asin"),
-                "title": product.get("title"),
-                "brand": product.get("brand"),
-                "price": product.get("price"),
-                "rating": product.get("rating"),
-                "reviews_count": product.get("reviews_count", 0),
-                "image": product.get("images", [{}])[0].get("url") if product.get("images") else None,
-                "url": f"https://www.amazon.com/dp/{product.get('asin')}",
+                "asin": product.get("asin", ""),
+                "title": product.get("title", "N/A"),
+                "brand": brand,
+                "price": price,
+                "rating": rating,
+                "reviews_count": reviews_count,
+                "image": None,  # 搜索API不返回图片
+                "url": url,
                 "fetched_at": product.get("fetched_at") or None
             })
 

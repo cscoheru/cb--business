@@ -134,7 +134,12 @@ class OxylabsClient:
         data = await self._request(payload)
 
         if data.get("results"):
-            return data["results"][0]["content"]["results"]
+            content = data["results"][0].get("content", {})
+            # 返回 organic 搜索结果（自然排名，非广告）
+            if isinstance(content, dict):
+                return content.get("organic", [])
+            elif isinstance(content, list):
+                return content
         return []
 
     async def get_amazon_bestsellers(
@@ -146,6 +151,9 @@ class OxylabsClient:
         """
         获取 Amazon Best Sellers
 
+        由于 Oxylabs Best Sellers API 目前不稳定，此方法使用搜索API
+        配合分类关键词来获取热门产品。
+
         Args:
             category: 分类名称 (URL 路径)
             domain: 域名
@@ -154,18 +162,50 @@ class OxylabsClient:
         Returns:
             产品列表
         """
+        # 分类关键词映射
+        category_keywords = {
+            "electronics": "best selling electronics",
+            "beauty": "best selling beauty products",
+            "home": "best selling home products",
+            "fashion": "best selling fashion clothing",
+            "home-garden": "best selling home garden",
+            "grocery": "best selling food grocery",
+            "baby-products": "best selling baby products",
+            "sports-fitness": "best selling sports fitness",
+            "pets": "best selling pet supplies",
+        }
+
+        # 获取对应分类的搜索关键词
+        search_query = category_keywords.get(category, f"best selling {category}")
+
+        # 使用搜索API获取热门产品
         payload = {
-            "source": "amazon_bestsellers",
+            "source": "amazon_search",
+            "query": search_query,
             "domain": domain,
-            "category": category,
             "parse": True,
             "limit": limit
         }
 
-        data = await self._request(payload)
+        try:
+            data = await self._request(payload)
 
-        if data.get("results"):
-            return data["results"][0]["content"]["results"]
+            if data.get("results"):
+                content = data["results"][0].get("content", {})
+                if isinstance(content, dict):
+                    # 合并 organic 和 amazons_choices 结果
+                    organic = content.get("organic", [])
+                    choices = content.get("amazons_choices", [])
+                    # 优先返回 organic，如果不够则补充 choices
+                    results = organic[:limit]
+                    if len(results) < limit:
+                        results.extend(choices[:limit - len(results)])
+                    return results
+                elif isinstance(content, list):
+                    return content[:limit]
+        except Exception as e:
+            logger.warning(f"Best Sellers fallback to search failed: {e}")
+
         return []
 
     async def google_search(

@@ -33,7 +33,21 @@ app = FastAPI(
 )
 
 # 配置CORS
-origins = settings.ALLOWED_ORIGINS.split(",") if settings.ALLOWED_ORIGINS else []
+# 默认允许 zenconsult.top 域名，确保生产环境CORS正常工作
+default_origins = [
+    "https://www.zenconsult.top",
+    "https://admin.zenconsult.top",
+    "http://localhost:3000",  # 开发环境
+    "http://localhost:3001",  # 备用开发端口
+]
+
+if settings.ALLOWED_ORIGINS:
+    origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+else:
+    origins = default_origins
+
+logger.info(f"CORS allowed origins: {origins}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

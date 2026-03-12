@@ -57,7 +57,14 @@ else:
     logger.info(f"Using default CORS origins: {origins}")
 
 # 去重（避免重复值导致CORS错误）
-origins = list(dict.fromkeys(origins).keys())
+seen = set()
+unique_origins = []
+for origin in origins:
+    if origin not in seen:
+        unique_origins.append(origin)
+        seen.add(origin)
+origins = unique_origins
+
 logger.info(f"Final CORS allowed origins: {origins}")
 
 app.add_middleware(

@@ -1,0 +1,122 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "CB Business" [ref=e4] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=e5]:
+        - link "定价" [ref=e6] [cursor=pointer]:
+          - /url: /pricing
+        - link "Dashboard" [ref=e7] [cursor=pointer]:
+          - /url: /dashboard
+        - button "登录" [ref=e8]
+        - button "免费注册" [ref=e9]
+  - main [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - heading "市场概览" [level=1] [ref=e13]
+        - paragraph [ref=e14]: 了解目标市场的基本情况、消费趋势和增长机会
+      - generic [ref=e15]:
+        - tablist [ref=e16]:
+          - tab "市场概览" [selected] [ref=e17]
+          - tab "消费趋势" [ref=e18]
+          - tab "深度洞察" [ref=e19]
+        - tabpanel "市场概览" [ref=e20]:
+          - generic [ref=e21]:
+            - generic [ref=e22]:
+              - generic [ref=e23]:
+                - generic [ref=e24]: 🇸🇬
+                - img [ref=e25]
+              - heading "东南亚" [level=3] [ref=e28]
+              - generic [ref=e29]:
+                - generic [ref=e30]:
+                  - generic [ref=e31]: GDP
+                  - generic [ref=e32]: $3.6万亿
+                - generic [ref=e33]:
+                  - generic [ref=e34]: 增长率
+                  - generic [ref=e35]: 4.5%
+                - generic [ref=e36]:
+                  - generic [ref=e37]: 人口
+                  - generic [ref=e38]: 6.7亿
+                - generic [ref=e39]:
+                  - generic [ref=e40]: 互联网
+                  - generic [ref=e41]: 75%
+            - generic [ref=e42]:
+              - generic [ref=e43]:
+                - generic [ref=e44]: 🇪🇺
+                - img [ref=e45]
+              - heading "欧盟" [level=3] [ref=e48]
+              - generic [ref=e49]:
+                - generic [ref=e50]:
+                  - generic [ref=e51]: GDP
+                  - generic [ref=e52]: $17万亿
+                - generic [ref=e53]:
+                  - generic [ref=e54]: 增长率
+                  - generic [ref=e55]: 1.2%
+                - generic [ref=e56]:
+                  - generic [ref=e57]: 人口
+                  - generic [ref=e58]: 4.5亿
+                - generic [ref=e59]:
+                  - generic [ref=e60]: 互联网
+                  - generic [ref=e61]: 92%
+            - generic [ref=e62]:
+              - generic [ref=e63]:
+                - generic [ref=e64]: 🇺🇸
+                - img [ref=e65]
+              - heading "美国" [level=3] [ref=e68]
+              - generic [ref=e69]:
+                - generic [ref=e70]:
+                  - generic [ref=e71]: GDP
+                  - generic [ref=e72]: $25万亿
+                - generic [ref=e73]:
+                  - generic [ref=e74]: 增长率
+                  - generic [ref=e75]: 2.1%
+                - generic [ref=e76]:
+                  - generic [ref=e77]: 人口
+                  - generic [ref=e78]: 3.3亿
+                - generic [ref=e79]:
+                  - generic [ref=e80]: 互联网
+                  - generic [ref=e81]: 90%
+            - generic [ref=e82]:
+              - generic [ref=e83]:
+                - generic [ref=e84]: 🇧🇷
+                - img [ref=e85]
+              - heading "拉美" [level=3] [ref=e88]
+              - generic [ref=e89]:
+                - generic [ref=e90]:
+                  - generic [ref=e91]: GDP
+                  - generic [ref=e92]: $5.5万亿
+                - generic [ref=e93]:
+                  - generic [ref=e94]: 增长率
+                  - generic [ref=e95]: 3.2%
+                - generic [ref=e96]:
+                  - generic [ref=e97]: 人口
+                  - generic [ref=e98]: 6.5亿
+                - generic [ref=e99]:
+                  - generic [ref=e100]: 互联网
+                  - generic [ref=e101]: 80%
+          - generic [ref=e102]:
+            - generic [ref=e103]:
+              - generic [ref=e104]: 覆盖市场
+              - generic [ref=e105]: "12"
+              - generic [ref=e106]: 持续增长中
+            - generic [ref=e107]:
+              - generic [ref=e108]: 总人口
+              - generic [ref=e109]: 21亿
+              - generic [ref=e110]: 潜在消费者
+            - generic [ref=e111]:
+              - generic [ref=e112]: GDP总和
+              - generic [ref=e113]: $54.7万亿
+              - generic [ref=e114]: 市场规模
+            - generic [ref=e115]:
+              - generic [ref=e116]: 平均增长
+              - generic [ref=e117]: +2.8%
+              - generic [ref=e118]: 年增长率
+  - contentinfo [ref=e119]:
+    - paragraph [ref=e121]: © 2025 Cross-Border Business. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=e127] [cursor=pointer]:
+    - img [ref=e128]
+  - alert [ref=e131]
+```

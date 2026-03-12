@@ -1,0 +1,50 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "CB Business" [ref=e4] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=e5]:
+        - link "定价" [ref=e6] [cursor=pointer]:
+          - /url: /pricing
+        - link "Dashboard" [ref=e7] [cursor=pointer]:
+          - /url: /dashboard
+        - button "登录" [ref=e8]
+        - button "免费注册" [ref=e9]
+  - main [ref=e10]:
+    - generic [ref=e12]:
+      - heading "发现跨境电商新机会" [level=1] [ref=e13]
+      - paragraph [ref=e14]: AI驱动的市场洞察，帮你在东南亚、欧美、拉美市场找到蓝海
+      - generic [ref=e15]:
+        - button "免费开始" [ref=e16]
+        - button "查看演示" [ref=e17]
+    - generic [ref=e19]:
+      - heading "为什么选择我们" [level=2] [ref=e20]
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]: 🔍
+          - heading "机会发现" [level=3] [ref=e24]
+          - paragraph [ref=e25]: AI分析市场趋势
+        - generic [ref=e26]:
+          - generic [ref=e27]: ⚠️
+          - heading "风险预警" [level=3] [ref=e28]
+          - paragraph [ref=e29]: 实时政策监控
+        - generic [ref=e30]:
+          - generic [ref=e31]: 📋
+          - heading "实操指南" [level=3] [ref=e32]
+          - paragraph [ref=e33]: 详细操作手册
+        - generic [ref=e34]:
+          - generic [ref=e35]: 💰
+          - heading "成本计算" [level=3] [ref=e36]
+          - paragraph [ref=e37]: 精确利润分析
+    - generic [ref=e39]:
+      - heading "开始你的跨境电商之旅" [level=2] [ref=e40]
+      - button "免费注册" [ref=e41]
+  - contentinfo [ref=e42]:
+    - paragraph [ref=e44]: © 2025 Cross-Border Business. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=e50] [cursor=pointer]:
+    - img [ref=e51]
+  - alert [ref=e54]
+```

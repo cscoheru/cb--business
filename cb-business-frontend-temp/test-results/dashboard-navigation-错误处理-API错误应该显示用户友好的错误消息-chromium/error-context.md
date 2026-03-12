@@ -1,0 +1,133 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "CB Business" [ref=e4] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=e5]:
+        - link "定价" [ref=e6] [cursor=pointer]:
+          - /url: /pricing
+        - link "Dashboard" [ref=e7] [cursor=pointer]:
+          - /url: /dashboard
+        - button "登录" [ref=e8]
+        - button "免费注册" [ref=e9]
+  - main [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - heading "机会发现" [level=1] [ref=e13]
+        - paragraph [ref=e14]: AI 为您分析全球市场，发现跨境电商新机会
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e18]:
+            - img [ref=e19]
+            - textbox "搜索机会..." [ref=e22]
+          - button "筛选" [ref=e23]:
+            - img
+            - text: 筛选
+        - generic [ref=e24]:
+          - generic [ref=e25] [cursor=pointer]: 全部市场
+          - generic [ref=e26] [cursor=pointer]: 东南亚
+          - generic [ref=e27] [cursor=pointer]: 欧美
+          - generic [ref=e28] [cursor=pointer]: 拉美
+          - generic [ref=e29] [cursor=pointer]: 中东
+          - generic [ref=e30] [cursor=pointer]: 非洲
+      - generic [ref=e31]:
+        - generic [ref=e33]:
+          - img [ref=e35]
+          - generic [ref=e38]:
+            - generic [ref=e39]: "156"
+            - generic [ref=e40]: 总机会数
+        - generic [ref=e42]:
+          - img [ref=e44]
+          - generic [ref=e46]:
+            - generic [ref=e47]: "23"
+            - generic [ref=e48]: 高潜力
+        - generic [ref=e50]:
+          - img [ref=e52]
+          - generic [ref=e56]:
+            - generic [ref=e57]: "89"
+            - generic [ref=e58]: 产品类别
+        - generic [ref=e60]:
+          - img [ref=e62]
+          - generic [ref=e65]:
+            - generic [ref=e66]: "12"
+            - generic [ref=e67]: 覆盖市场
+      - generic [ref=e68]:
+        - generic [ref=e69]:
+          - heading "推荐机会" [level=2] [ref=e70]
+          - generic [ref=e71]:
+            - generic [ref=e72]: 排序：
+            - combobox [ref=e73]:
+              - option "相关度排序" [selected]
+              - option "潜力高低"
+              - option "最新发布"
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - generic [ref=e76]:
+              - generic [ref=e77]:
+                - generic [ref=e78]: 东南亚
+                - heading "东南亚宠物用品市场" [level=3] [ref=e79]
+                - paragraph [ref=e80]: 宠物用品
+              - img [ref=e82]
+            - paragraph [ref=e85]: 随着中产阶级崛起，宠物领养率同比增长40%，但本土供应链薄弱，中国产品有明显价格优势。
+            - generic [ref=e86]:
+              - generic [ref=e87]:
+                - img [ref=e88]
+                - generic [ref=e90]: 预估利润率 25-35%
+              - link "查看详情" [ref=e91] [cursor=pointer]:
+                - /url: /dashboard/opportunities/1
+                - button "查看详情" [ref=e92]
+          - generic [ref=e93]:
+            - generic [ref=e94]:
+              - generic [ref=e95]:
+                - generic [ref=e96]: 拉美
+                - heading "拉美智能家居小工具" [level=3] [ref=e97]
+                - paragraph [ref=e98]: 智能家居
+              - img [ref=e100]
+            - paragraph [ref=e103]: 智能门锁、智能插座等入门级产品需求激增，当地品牌少，主要依赖进口。
+            - generic [ref=e104]:
+              - generic [ref=e105]:
+                - img [ref=e106]
+                - generic [ref=e108]: 预估利润率 25-35%
+              - link "查看详情" [ref=e109] [cursor=pointer]:
+                - /url: /dashboard/opportunities/2
+                - button "查看详情" [ref=e110]
+          - generic [ref=e111]:
+            - generic [ref=e112]:
+              - generic [ref=e113]:
+                - generic [ref=e114]: 欧美
+                - heading "欧美露营装备" [level=3] [ref=e115]
+                - paragraph [ref=e116]: 户外用品
+              - img [ref=e118]
+            - paragraph [ref=e121]: 疫情后户外露营持续火热，轻量化、多功能产品更受欢迎。
+            - generic [ref=e122]:
+              - generic [ref=e123]:
+                - img [ref=e124]
+                - generic [ref=e126]: 预估利润率 25-35%
+              - link "查看详情" [ref=e127] [cursor=pointer]:
+                - /url: /dashboard/opportunities/3
+                - button "查看详情" [ref=e128]
+          - generic [ref=e129]:
+            - generic [ref=e130]:
+              - generic [ref=e131]:
+                - generic [ref=e132]: 中东
+                - heading "中东美妆个护" [level=3] [ref=e133]
+                - paragraph [ref=e134]: 美妆个护
+              - img [ref=e136]
+            - paragraph [ref=e139]: 宗教和文化偏好带来特殊需求，如无酒精、清真认证产品有市场机会。
+            - generic [ref=e140]:
+              - generic [ref=e141]:
+                - img [ref=e142]
+                - generic [ref=e144]: 预估利润率 25-35%
+              - link "查看详情" [ref=e145] [cursor=pointer]:
+                - /url: /dashboard/opportunities/4
+                - button "查看详情" [ref=e146]
+        - button "加载更多" [ref=e148]
+  - contentinfo [ref=e149]:
+    - paragraph [ref=e151]: © 2025 Cross-Border Business. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=e157] [cursor=pointer]:
+    - img [ref=e158]
+  - alert [ref=e161]
+```

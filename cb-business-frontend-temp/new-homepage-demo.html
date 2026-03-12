@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZenConsult - 跨境电商智能信息平台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; background: #f5f5f5; }
+    .card-hover { transition: all 0.2s; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+    .news-item { transition: all 0.15s; }
+    .news-item:hover { background: #f9fafb; }
+  </style>
+</head>
+<body class="bg-gray-100">
+
+  <!-- 全局导航栏 -->
+  <nav class="bg-white border-b sticky top-0 z-50 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex items-center justify-between h-14">
+        <div class="flex items-center gap-8">
+          <a href="#" class="font-bold text-xl text-gray-900">
+            <span class="text-2xl">🌐</span> ZenConsult
+          </a>
+          <div class="hidden md:flex items-center gap-6 text-sm text-gray-600">
+            <a href="#" class="hover:text-gray-900">首页</a>
+            <a href="#" class="hover:text-gray-900">🌏 东南亚</a>
+            <a href="#" class="hover:text-gray-900">🇺🇸 欧美</a>
+            <a href="#" class="hover:text-gray-900">🇧🇷 拉美</a>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <input type="search" placeholder="搜索..." class="px-3 py-1.5 border border-gray-200 rounded text-sm w-40 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          <a href="#" class="text-sm text-gray-600 hover:text-gray-900">登录</a>
+          <a href="#" class="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">注册</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 有趣的功能模块区 -->
+  <section class="max-w-7xl mx-auto px-4 py-10">
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+      <!-- 个人能力照妖镜 -->
+      <a href="#" class="card-hover bg-white rounded-lg p-5 border border-gray-200 block">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-3xl">🪞</span>
+          <div>
+            <h3 class="font-semibold text-gray-900">个人能力照妖镜</h3>
+            <p class="text-xs text-gray-500">测测你的跨境电商潜力</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600">5分钟快速评估，发现你的优势与短板</p>
+        <div class="mt-3 flex items-center gap-2 text-xs text-gray-500">
+          <span class="bg-green-50 text-green-600 px-2 py-0.5 rounded">免费</span>
+          <span>1.2万人已测</span>
+        </div>
+      </a>
+
+      <!-- 资源盘点 -->
+      <a href="#" class="card-hover bg-white rounded-lg p-5 border border-gray-200 block">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-3xl">📦</span>
+          <div>
+            <h3 class="font-semibold text-gray-900">资源盘点</h3>
+            <p class="text-xs text-gray-500">清点你的创业弹药库</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600">资金、时间、技能...你手里有什么牌？</p>
+        <div class="mt-3 flex items-center gap-2 text-xs text-gray-500">
+          <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded">工具</span>
+          <span>10分钟搞定</span>
+        </div>
+      </a>
+
+      <!-- 喜欢到哪里去看看 -->
+      <a href="#" class="card-hover bg-white rounded-lg p-5 border border-gray-200 block">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-3xl">🧭</span>
+          <div>
+            <h3 class="font-semibold text-gray-900">喜欢到哪里去看看</h3>
+            <p class="text-xs text-gray-500">跟着兴趣探索市场</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600">喜欢美妆？宠物？还是户外装备？看看哪个市场适合你</p>
+        <div class="mt-3 flex items-center gap-2 text-xs text-gray-500">
+          <span class="bg-purple-50 text-purple-600 px-2 py-0.5 rounded">趣味</span>
+          <span>发现兴趣市场</span>
+        </div>
+      </a>
+
+      <!-- 跨境电商业主养成记 -->
+      <a href="#" class="card-hover bg-white rounded-lg p-5 border border-gray-200 block">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-3xl">📖</span>
+          <div>
+            <h3 class="font-semibold text-gray-900">跨境电商业主养成记</h3>
+            <p class="text-xs text-gray-500">从小白到卖家的成长地图</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600">新手入门、进阶成长、突破瓶颈...你的创业路线图</p>
+        <div class="mt-3 flex items-center gap-2 text-xs text-gray-500">
+          <span class="bg-orange-50 text-orange-600 px-2 py-0.5 rounded">系列</span>
+          <span>12个阶段</span>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- 三大区域资讯流 -->
+  <section class="max-w-7xl mx-auto px-4 py-6">
+    <div class="grid lg:grid-cols-3 gap-4">
+
+      <!-- 东南亚 -->
+      <div class="bg-white rounded-lg border border-gray-200">
+        <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🌏</span>
+            <span class="font-semibold text-gray-900">东南亚</span>
+          </div>
+          <div class="flex gap-1 text-xs">
+            <a href="#" class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">全部</a>
+            <a href="/th" class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">🇹🇭</a>
+            <a href="/vn" class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">🇻🇳</a>
+            <a href="/my" class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">🇲🇾</a>
+          </div>
+        </div>
+        <div class="p-3 space-y-0.5">
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">2h</span>
+            <span class="text-xs text-gray-500 mt-0.5">雨果网</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">泰国新电商法生效，注册资本提高至200万泰铢</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">3h</span>
+            <span class="text-xs text-gray-500 mt-0.5">跨境电商网</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">Shopee泰国站家居用品类目开放招商</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">5h</span>
+            <span class="text-xs text-gray-500 mt-0.5">亿邦动力</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">越南海关严查低申报，多家卖家货物被扣</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">6h</span>
+            <span class="text-xs text-gray-500 mt-0.5">卖家之家</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">Lazada马来西亚站佣金降至5%</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">8h</span>
+            <span class="text-xs text-gray-500 mt-0.5">跨境眼</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">马来西亚穆斯林市场潜力巨大</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">昨天</span>
+            <span class="text-xs text-gray-500 mt-0.5">财经时报</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">越南降低跨境电商税收起征点</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">2天前</span>
+            <span class="text-xs text-gray-500 mt-0.5">拉拉日报</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">泰国TikTok Shop美妆类增长最快</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">2天前</span>
+            <span class="text-xs text-gray-500 mt-0.5">物流圈</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">中泰海运价格下调至18元/kg</span>
+          </a>
+        </div>
+        <div class="px-4 pb-3">
+          <a href="#" class="block text-center text-sm text-gray-600 hover:text-gray-900 py-2 border border-gray-200 rounded">
+            查看更多 →
+          </a>
+        </div>
+      </div>
+
+      <!-- 欧美 -->
+      <div class="bg-white rounded-lg border border-gray-200">
+        <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🇺🇸</span>
+            <span class="font-semibold text-gray-900">欧美</span>
+          </div>
+          <div class="flex gap-1 text-xs">
+            <a href="#" class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">全部</a>
+            <a href="/us" class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">🇺🇸</a>
+          </div>
+        </div>
+        <div class="p-3 space-y-0.5">
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">1h</span>
+            <span class="text-xs text-gray-500 mt-0.5">跨境电商周刊</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">美国加州通过电商销售税新法案</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">4h</span>
+            <span class="text-xs text-gray-500 mt-0.5">亚马逊论坛</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">Amazon FBA费用调整，新卖家享5折</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">7h</span>
+            <span class="text-xs text-gray-500 mt-0.5">卖家精灵</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">美国专利诉讼激增，电子卖家被起诉</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">昨天</span>
+            <span class="text-xs text-gray-500 mt-0.5">Walmart官方</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">Walmart Marketplace开放中国卖家</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">2天前</span>
+            <span class="text-xs text-gray-500 mt-0.5">物流参谋</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">美森快船价格下调，时效8天</span>
+          </a>
+        </div>
+        <div class="px-4 pb-3">
+          <a href="#" class="block text-center text-sm text-gray-600 hover:text-gray-900 py-2 border border-gray-200 rounded">
+            查看更多 →
+          </a>
+        </div>
+      </div>
+
+      <!-- 拉美 -->
+      <div class="bg-white rounded-lg border border-gray-200">
+        <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🇧🇷</span>
+            <span class="font-semibold text-gray-900">拉美</span>
+          </div>
+          <div class="flex gap-1 text-xs">
+            <a href="#" class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">全部</a>
+            <a href="/br" class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">🇧🇷</a>
+            <a href="/mx" class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">🇲🇽</a>
+          </div>
+        </div>
+        <div class="p-3 space-y-0.5">
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">30分钟</span>
+            <span class="text-xs text-gray-500 mt-0.5">拉美电商</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">巴西调整进口税起征点至50美元</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">2h</span>
+            <span class="text-xs text-gray-500 mt-0.5">美客多</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">墨西哥站开放中国卖家招商</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">5h</span>
+            <span class="text-xs text-gray-500 mt-0.5">物流圈</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">巴西海关罢工结束，积压货物清关</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">昨天</span>
+            <span class="text-xs text-gray-500 mt-0.5">Shopee</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">Shopee巴西站用户破2000万</span>
+          </a>
+          <a href="#" class="news-item flex items-start gap-2 py-2 px-2 rounded cursor-pointer block">
+            <span class="text-xs text-gray-400 mt-0.5">2天前</span>
+            <span class="text-xs text-gray-500 mt-0.5">拉美智库</span>
+            <span class="text-sm text-gray-800 hover:text-blue-600 flex-1">墨西哥电商增长23%领跑拉美</span>
+          </a>
+        </div>
+        <div class="px-4 pb-3">
+          <a href="#" class="block text-center text-sm text-gray-600 hover:text-gray-900 py-2 border border-gray-200 rounded">
+            查看更多 →
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 专业信息门户 -->
+  <section class="max-w-7xl mx-auto px-4 py-10">
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      <!-- 政策中心 -->
+      <a href="#" class="card-hover bg-white rounded-lg p-5 border border-gray-200 block">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-3xl">📜</span>
+          <div>
+            <h3 class="font-semibold text-gray-900">政策中心</h3>
+            <p class="text-xs text-gray-500">各国电商政策法规解读</p>
+          </div>
+          <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded ml-auto">12</span>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🌏</span>
+            <span class="text-xs text-gray-400">2h</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">泰国新电商法生效，跨境卖家需注意合规要求</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇧🇷</span>
+            <span class="text-xs text-gray-400">30m</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">巴西调整跨境电商进口税起征点</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇺🇸</span>
+            <span class="text-xs text-gray-400">1h</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">美国加州通过电商销售税新法案</span>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-gray-100">
+          <span class="text-sm text-gray-500">查看全部 →</span>
+        </div>
+      </a>
+
+      <!-- 机会发现 -->
+      <a href="#" class="card-hover bg-white rounded-lg p-5 border border-gray-200 block">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-3xl">💡</span>
+          <div>
+            <h3 class="font-semibold text-gray-900">机会发现</h3>
+            <p class="text-xs text-gray-500">市场机会、选品建议</p>
+          </div>
+          <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded ml-auto">8</span>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🌏</span>
+            <span class="text-xs text-gray-400">3h</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">Shopee泰国站家居用品类目开放招商</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇺🇸</span>
+            <span class="text-xs text-gray-400">4h</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">Amazon FBA费用调整，新卖家迎机会</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇧🇷</span>
+            <span class="text-xs text-gray-400">2h</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">墨西哥站开放中国卖家招商</span>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-gray-100">
+          <span class="text-sm text-gray-500">查看全部 →</span>
+        </div>
+      </a>
+
+      <!-- 风险预警 -->
+      <a href="#" class="card-hover bg-white rounded-lg p-5 border border-gray-200 block">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-3xl">⚠️</span>
+          <div>
+            <h3 class="font-semibold text-gray-900">风险预警</h3>
+            <p class="text-xs text-gray-500">市场风险、运营陷阱</p>
+          </div>
+          <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded ml-auto">6</span>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🌏</span>
+            <span class="text-xs text-gray-400">5h</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">越南海关严查低申报，卖家被扣</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇺🇸</span>
+            <span class="text-xs text-gray-400">7h</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">美国专利诉讼激增需注意</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇧🇷</span>
+            <span class="text-xs text-gray-400">5h</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">巴西海关罢工延误清关</span>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-gray-100">
+          <span class="text-sm text-gray-500">查看全部 →</span>
+        </div>
+      </a>
+
+      <!-- 实操指南 -->
+      <a href="#" class="card-hover bg-white rounded-lg p-5 border border-gray-200 block">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-3xl">📊</span>
+          <div>
+            <h3 class="font-semibold text-gray-900">实操指南</h3>
+            <p class="text-xs text-gray-500">开店流程、运营技巧</p>
+          </div>
+          <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded ml-auto">5</span>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🌏</span>
+            <span class="text-xs text-gray-400">昨天</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">Shopee新卖家开店流程指南</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇺🇸</span>
+            <span class="text-xs text-gray-400">2天前</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">Amazon Listing优化技巧</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇧🇷</span>
+            <span class="text-xs text-gray-400">3天前</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">美客多店铺运营攻略</span>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-gray-100">
+          <span class="text-sm text-gray-500">查看全部 →</span>
+        </div>
+      </a>
+
+      <!-- 平台指南 -->
+      <a href="#" class="card-hover bg-white rounded-lg p-5 border border-gray-200 block">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-3xl">🛒</span>
+          <div>
+            <h3 class="font-semibold text-gray-900">平台指南</h3>
+            <p class="text-xs text-gray-500">各大平台入驻、运营</p>
+          </div>
+          <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded ml-auto">10</span>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🌏</span>
+            <span class="text-xs text-gray-400">6h</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">Lazada马来西亚站佣金调整</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇺🇸</span>
+            <span class="text-xs text-gray-400">昨天</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">Walmart新卖家入驻要求</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇧🇷</span>
+            <span class="text-xs text-gray-400">昨天</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">Shopee巴西站运营策略</span>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-gray-100">
+          <span class="text-sm text-gray-500">查看全部 →</span>
+        </div>
+      </a>
+
+      <!-- 物流参考 -->
+      <a href="#" class="card-hover bg-white rounded-lg p-5 border border-gray-200 block">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-3xl">🚚</span>
+          <div>
+            <h3 class="font-semibold text-gray-900">物流参考</h3>
+            <p class="text-xs text-gray-500">国际物流、仓储方案</p>
+          </div>
+          <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded ml-auto">4</span>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🌏</span>
+            <span class="text-xs text-gray-400">2天前</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">中泰物流渠道对比分析</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇺🇸</span>
+            <span class="text-xs text-gray-400">2天前</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">美国FBA头程物流方案</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-xs">🇧🇷</span>
+            <span class="text-xs text-gray-400">3天前</span>
+            <span class="text-gray-700 hover:text-blue-600 flex-1">巴西清关流程及注意事项</span>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-gray-100">
+          <span class="text-sm text-gray-500">查看全部 →</span>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="max-w-7xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg p-8 text-center border border-gray-200">
+      <h2 class="text-xl font-semibold text-gray-900 mb-2">想要更深入的数据分析？</h2>
+      <p class="text-gray-600 mb-4">升级到专业版，获取AI选品分析、成本计算器等高级功能</p>
+      <div class="flex gap-3 justify-center">
+        <a href="#pricing" class="px-5 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">查看定价</a>
+        <a href="#" class="px-5 py-2 border border-gray-300 text-gray-700 rounded text-sm hover:bg-gray-50">免费注册</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页脚 -->
+  <footer class="bg-white border-t border-gray-200 py-8">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
+        <p>© 2024 ZenConsult. 跨境电商智能信息平台</p>
+        <div class="flex gap-4">
+          <a href="#" class="hover:text-gray-900">关于</a>
+          <a href="#" class="hover:text-gray-900">隐私</a>
+          <a href="#" class="hover:text-gray-900">条款</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

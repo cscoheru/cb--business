@@ -1,6 +1,7 @@
 # api/products.py
 """产品数据API"""
 
+import logging
 from fastapi import APIRouter, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
@@ -8,6 +9,8 @@ from typing import List, Optional
 from models.product import Product
 from config.database import get_db
 from sqlalchemy import select, and_, desc, func
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/products", tags=["products"])
 
@@ -235,6 +238,59 @@ async def trigger_shopee_crawl(
         }
 
     except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "products": []
+        }
+
+
+@router.post("/trigger/amazon")
+async def trigger_amazon_crawl(
+    country: str = Query("us", description="国家代码 (us, th, sg, vn)"),
+    category: str = Query(None, description="分类 (electronics, home, fashion, etc.)"),
+    max_products: int = Query(20, description="最大商品数量")
+):
+    """手动触发Amazon Best Sellers商品爬取"""
+    from crawler.products.amazon_bestsellers import AmazonBestSellersCrawler
+
+    try:
+        async with AmazonBestSellersCrawler() as crawler:
+            products = await crawler.fetch_bestsellers(
+                country=country,
+                category=category,
+                max_products=max_products
+            )
+
+            # 转换为响应格式
+            results = [
+                {
+                    "asin": p.asin,
+                    "title": p.title,
+                    "price": p.price,
+                    "original_price": p.original_price,
+                    "rating": p.rating,
+                    "reviews_count": p.reviews_count,
+                    "rank": p.rank,
+                    "image_url": p.image_url,
+                    "product_url": p.product_url,
+                    "is_prime": p.is_prime,
+                    "is_amazon_choice": p.is_amazon_choice,
+                }
+                for p in products
+            ]
+
+        return {
+            "success": True,
+            "country": country.upper(),
+            "category": category or "all",
+            "count": len(results),
+            "products": results[:10],  # 返回前10个作为示例
+        }
+
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Amazon爬取失败: {e}")
         return {
             "success": False,
             "error": str(e),

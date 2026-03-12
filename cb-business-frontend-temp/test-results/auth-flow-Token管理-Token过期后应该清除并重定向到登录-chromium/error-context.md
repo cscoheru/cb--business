@@ -1,0 +1,71 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "CB Business" [ref=e4] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=e5]:
+        - link "定价" [ref=e6] [cursor=pointer]:
+          - /url: /pricing
+        - link "Dashboard" [ref=e7] [cursor=pointer]:
+          - /url: /dashboard
+        - button "登录" [ref=e8]
+        - button "免费注册" [ref=e9]
+  - main [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - heading "设置" [level=1] [ref=e13]
+        - paragraph [ref=e14]: 管理您的账户、偏好和订阅设置
+      - generic [ref=e15]:
+        - tablist [ref=e16]:
+          - tab "个人资料" [selected] [ref=e17]
+          - tab "偏好设置" [ref=e18]
+          - tab "通知设置" [ref=e19]
+          - tab "订阅管理" [ref=e20]
+          - tab "账单管理" [ref=e21]
+        - tabpanel "个人资料" [ref=e22]:
+          - generic [ref=e23]:
+            - heading "个人信息" [level=2] [ref=e24]
+            - generic [ref=e25]:
+              - img [ref=e27]
+              - button "更换头像" [ref=e31]
+            - generic [ref=e32]:
+              - generic [ref=e33]:
+                - generic [ref=e34]:
+                  - generic [ref=e35]: 姓名
+                  - textbox "姓名" [ref=e36]:
+                    - /placeholder: 您的姓名
+                - generic [ref=e37]:
+                  - generic [ref=e38]: 邮箱
+                  - textbox "邮箱" [ref=e39]:
+                    - /placeholder: your@email.com
+              - generic [ref=e40]:
+                - generic [ref=e41]: 公司名称
+                - textbox "公司名称" [ref=e42]:
+                  - /placeholder: 您的公司名称（选填）
+              - generic [ref=e43]:
+                - generic [ref=e44]: 手机号
+                - textbox "手机号" [ref=e45]:
+                  - /placeholder: +86 13800000000
+              - button "保存更改" [ref=e46]
+          - generic [ref=e47]:
+            - heading "密码" [level=2] [ref=e48]
+            - generic [ref=e49]:
+              - generic [ref=e50]:
+                - generic [ref=e51]: 当前密码
+                - textbox "当前密码" [ref=e52]
+              - generic [ref=e53]:
+                - generic [ref=e54]: 新密码
+                - textbox "新密码" [ref=e55]
+              - generic [ref=e56]:
+                - generic [ref=e57]: 确认新密码
+                - textbox "确认新密码" [ref=e58]
+              - button "更新密码" [ref=e59]
+  - contentinfo [ref=e60]:
+    - paragraph [ref=e62]: © 2025 Cross-Border Business. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=e68] [cursor=pointer]:
+    - img [ref=e69]
+  - alert [ref=e72]
+```

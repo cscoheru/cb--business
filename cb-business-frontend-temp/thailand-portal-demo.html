@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>泰国跨境电商门户 - Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .gradient-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .card-hover { transition: all 0.2s; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+    .badge-policy { background: #fef3c7; color: #92400e; }
+    .badge-opportunity { background: #d1fae5; color: #065f46; }
+    .badge-risk { background: #fee2e2; color: #991b1b; }
+    .badge-guide { background: #dbeafe; color: #1e40af; }
+    .badge-platform { background: #f3e8ff; color: #6b21a8; }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <!-- 全局导航 -->
+  <nav class="bg-white border-b sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex items-center justify-between h-14">
+        <div class="flex items-center gap-6">
+          <a href="#" class="font-bold text-xl">3Strategy</a>
+          <div class="hidden md:flex items-center gap-4 text-sm">
+            <a href="#" class="text-gray-600 hover:text-gray-900">首页</a>
+            <span class="text-gray-300">|</span>
+            <div class="relative group">
+              <span class="text-gray-900 font-medium">东南亚 ▼</span>
+              <div class="absolute hidden group-hover:block bg-white border rounded-lg shadow-lg py-2 w-40">
+                <a href="#" class="block px-4 py-2 text-sm text-gray-900 bg-gray-50">🇹🇭 泰国</a>
+                <a href="#" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">🇻🇳 越南</a>
+                <a href="#" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">🇲🇾 马来西亚</a>
+                <a href="#" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">🇸🇬 新加坡</a>
+                <a href="#" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">🇵🇭 菲律宾</a>
+                <a href="#" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">🇮🇩 印度尼西亚</a>
+              </div>
+            </div>
+            <a href="#" class="text-gray-600 hover:text-gray-900">🇺🇸 欧美</a>
+            <a href="#" class="text-gray-600 hover:text-gray-900">🇧🇷 拉美</a>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <input type="search" placeholder="搜索政策、资讯、产品..." class="px-3 py-1.5 border rounded-lg text-sm w-48">
+          <button class="text-sm text-gray-600 hover:text-gray-900">登录</button>
+          <button class="text-sm bg-gray-900 text-white px-3 py-1.5 rounded-lg hover:bg-gray-800">免费注册</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 面包屑 -->
+  <div class="bg-white border-b">
+    <div class="max-w-7xl mx-auto px-4 py-2">
+      <div class="flex items-center gap-2 text-sm text-gray-600">
+        <a href="#" class="hover:text-gray-900">首页</a>
+        <span>›</span>
+        <a href="#" class="hover:text-gray-900">东南亚</a>
+        <span>›</span>
+        <span class="text-gray-900 font-medium">泰国</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 国家门户头部 - 带泰国风情背景 -->
+  <header class="relative overflow-hidden">
+    <!-- 背景渐变 -->
+    <div class="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400"></div>
+    <!-- 泰国传统图案装饰 -->
+    <div class="absolute inset-0 opacity-10">
+      <div class="absolute top-0 left-0 w-64 h-64 border-8 border-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+      <div class="absolute bottom-0 right-0 w-96 h-96 border-8 border-white rounded-full translate-x-1/2 translate-y-1/2"></div>
+      <div class="absolute top-1/2 left-1/4 w-32 h-32 border-4 border-white rounded-full -translate-y-1/2"></div>
+    </div>
+    <!-- 泰国风情元素 -->
+    <div class="absolute top-4 right-8 text-6xl opacity-30">🏛️</div>
+    <div class="absolute bottom-4 left-8 text-5xl opacity-30">🛕</div>
+    <div class="absolute top-1/2 right-16 text-4xl opacity-20">🐘</div>
+    <div class="absolute bottom-8 right-1/3 text-5xl opacity-20">🌺</div>
+
+    <div class="relative max-w-7xl mx-auto px-4 py-10">
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="flex items-center gap-4 mb-4">
+            <span class="text-7xl drop-shadow-lg">🇹🇭</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <h1 class="text-4xl font-bold text-white drop-shadow-lg">泰国</h1>
+                <span class="text-2xl">สยาม</span>
+              </div>
+              <p class="text-white/90 text-lg">Thailand · 微笑之国 · 东南亚第二大经济体</p>
+              <p class="text-white/70 text-sm mt-1">🌏 东南亚中心 · 💬 泰语/英语 · 🕐 GMT+7</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-4 text-sm mt-5">
+            <div class="bg-white/15 backdrop-blur-sm rounded-lg px-4 py-3 border border-white/20">
+              <div class="flex items-center gap-2 text-white/80">
+                <span>👥</span>
+                <span>人口</span>
+              </div>
+              <div class="font-semibold text-white text-lg">7,100 万</div>
+            </div>
+            <div class="bg-white/15 backdrop-blur-sm rounded-lg px-4 py-3 border border-white/20">
+              <div class="flex items-center gap-2 text-white/80">
+                <span>💰</span>
+                <span>GDP</span>
+              </div>
+              <div class="font-semibold text-white text-lg">$5,490 亿</div>
+            </div>
+            <div class="bg-white/15 backdrop-blur-sm rounded-lg px-4 py-3 border border-white/20">
+              <div class="flex items-center gap-2 text-white/80">
+                <span>🛒</span>
+                <span>电商规模</span>
+              </div>
+              <div class="font-semibold text-white text-lg">$190 亿</div>
+            </div>
+            <div class="bg-white/15 backdrop-blur-sm rounded-lg px-4 py-3 border border-white/20">
+              <div class="flex items-center gap-2 text-white/80">
+                <span>📈</span>
+                <span>增长率</span>
+              </div>
+              <div class="font-semibold text-green-300 text-lg">+18% 🚀</div>
+            </div>
+            <div class="bg-white/15 backdrop-blur-sm rounded-lg px-4 py-3 border border-white/20">
+              <div class="flex items-center gap-2 text-white/80">
+                <span>🏙️</span>
+                <span>首都</span>
+              </div>
+              <div class="font-semibold text-white text-lg">曼谷</div>
+            </div>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="bg-white/15 backdrop-blur-sm rounded-lg px-5 py-3 border border-white/20 mb-3">
+            <div class="text-white/80 text-sm">📅 今日更新</div>
+            <div class="font-semibold text-white text-2xl">12 篇</div>
+          </div>
+          <div class="bg-white/15 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/20">
+            <div class="text-white/80 text-xs">覆盖平台</div>
+            <div class="flex gap-2 mt-1">
+              <span class="text-lg">🟠</span>
+              <span class="text-lg">🔵</span>
+              <span class="text-lg">⚫</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 快速导航标签 -->
+  <div class="bg-white border-b sticky top-14 z-40">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex items-center gap-1 overflow-x-auto py-2">
+        <a href="#overview" class="px-4 py-2 text-sm font-medium text-gray-900 border-b-2 border-gray-900 whitespace-nowrap">概览</a>
+        <a href="#news" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap">最新资讯 <span class="ml-1 px-1.5 py-0.5 bg-gray-100 rounded text-xs">24</span></a>
+        <a href="#policies" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap">政策法规 <span class="ml-1 px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs">3 新</span></a>
+        <a href="#opportunities" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap">机会发现 <span class="ml-1 px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">8</span></a>
+        <a href="#risks" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap">风险预警 <span class="ml-1 px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">2</span></a>
+        <a href="#platforms" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap">平台指南</a>
+        <a href="#hot-products" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap">热销产品</a>
+        <a href="#costs" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap">成本参考</a>
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- 泰国文化横幅 -->
+    <section class="mb-8 bg-gradient-to-r from-amber-100 via-orange-50 to-yellow-100 rounded-2xl p-6 border border-amber-200 relative overflow-hidden">
+      <!-- 装饰性图案 -->
+      <div class="absolute top-0 right-0 w-32 h-32 border-4 border-amber-300 rounded-full translate-x-1/2 -translate-y-1/2 opacity-50"></div>
+      <div class="absolute bottom-0 left-0 w-24 h-24 border-4 border-orange-300 rounded-full -translate-x-1/2 translate-y-1/2 opacity-50"></div>
+
+      <div class="relative flex items-center justify-between">
+        <div class="flex items-center gap-6">
+          <div class="text-6xl">🙏</div>
+          <div>
+            <h3 class="text-xl font-bold text-gray-900">萨瓦迪卡！欢迎来到泰国</h3>
+            <p class="text-gray-600 mt-1">探索"微笑之国"的跨境电商机遇 · 中泰贸易年增长25%</p>
+            <div class="flex items-center gap-4 mt-3 text-sm">
+              <span class="flex items-center gap-1 text-gray-600"><span class="text-lg">🐘</span> 大象之国</span>
+              <span class="flex items-center gap-1 text-gray-600"><span class="text-lg">🌺</span> 兰花之都</span>
+              <span class="flex items-center gap-1 text-gray-600"><span class="text-lg">🍜</span> 泰餐文化</span>
+              <span class="flex items-center gap-1 text-gray-600"><span class="text-lg">💎</span> 宝石王国</span>
+            </div>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-sm text-gray-600 mb-2">快速了解泰国</div>
+          <div class="flex gap-2">
+            <a href="#policies" class="text-xs bg-white px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50 border">📜 政策</a>
+            <a href="#platforms" class="text-xs bg-white px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50 border">🛒 平台</a>
+            <a href="#costs" class="text-xs bg-white px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50 border">💵 成本</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 概览卡片 - 泰国特色主题 -->
+    <section id="overview" class="mb-8">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="text-2xl">🏝️</span>
+        <h2 class="text-lg font-bold">市场概览</h2>
+        <span class="text-sm text-gray-500 ml-2">· 泰国特色洞察</span>
+      </div>
+      <div class="grid md:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-100 card-hover">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">📱</span>
+            <span class="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">+25%</span>
+          </div>
+          <div class="font-semibold text-gray-900">移动电商占比</div>
+          <div class="text-2xl font-bold text-orange-600">82%</div>
+          <div class="text-sm text-gray-500 mt-1">🌴 东南亚最高 · 智能手机普及</div>
+        </div>
+        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100 card-hover">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">🛒</span>
+            <span class="badge-platform text-xs px-2 py-1 rounded">Shopee</span>
+          </div>
+          <div class="font-semibold text-gray-900">主流平台</div>
+          <div class="text-sm text-gray-600 mt-1">🟠 Shopee 42%</div>
+          <div class="text-sm text-gray-500">🔵 Lazada 35% · ⚫ TikTok 18%</div>
+        </div>
+        <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100 card-hover">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">💳</span>
+            <span class="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">特点</span>
+          </div>
+          <div class="font-semibold text-gray-900">支付方式</div>
+          <div class="text-sm text-gray-600 mt-1">💵 COD 65%</div>
+          <div class="text-sm text-gray-500">📱 电子钱包 28% · PromptPay普及</div>
+        </div>
+        <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100 card-hover">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-2xl">🚚</span>
+            <span class="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">改善中</span>
+          </div>
+          <div class="font-semibold text-gray-900">物流时效</div>
+          <div class="text-sm text-gray-600 mt-1">🏙️ 曼谷: 1-2天</div>
+          <div class="text-sm text-gray-500">🏖️ 外府: 3-5天 · 岛屿5-7天</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid md:grid-cols-3 gap-6">
+
+      <!-- 左侧主要内容 -->
+      <div class="md:col-span-2 space-y-8">
+
+        <!-- 最新资讯 -->
+        <section id="news">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold">最新资讯</h2>
+            <a href="#" class="text-sm text-gray-500 hover:text-gray-900">查看全部 →</a>
+          </div>
+          <div class="space-y-3">
+            <article class="bg-white rounded-xl p-4 border card-hover cursor-pointer">
+              <div class="flex items-start gap-3">
+                <span class="text-2xl">📢</span>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="badge-policy text-xs px-2 py-0.5 rounded">政策</span>
+                    <span class="text-xs text-gray-500">2小时前</span>
+                  </div>
+                  <h3 class="font-semibold text-gray-900 mb-1">泰国新增跨境电商税收优惠政策，中小企业最高可免3年所得税</h3>
+                  <p class="text-sm text-gray-600 line-clamp-2">泰国财政部宣布，对年营业额低于1.8亿泰铢的跨境电商中小企业，提供为期3年的所得税减免...</p>
+                  <div class="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                    <span>来源: 泰国财政部官网</span>
+                    <span>·</span>
+                    <span>阅读 5.2k</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="bg-white rounded-xl p-4 border card-hover cursor-pointer">
+              <div class="flex items-start gap-3">
+                <span class="text-2xl">💡</span>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="badge-opportunity text-xs px-2 py-0.5 rounded">机会</span>
+                    <span class="text-xs text-gray-500">5小时前</span>
+                  </div>
+                  <h3 class="font-semibold text-gray-900 mb-1">Shopee泰国站家居品类爆发式增长，中国卖家月销破百万泰铢</h3>
+                  <p class="text-sm text-gray-600 line-clamp-2">随着泰国中产阶级崛起，家居装饰品需求激增。数据显示，2024年Q4中国卖家在泰国家居品类同比增长340%...</p>
+                  <div class="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                    <span>来源: Shopee官方报告</span>
+                    <span>·</span>
+                    <span>阅读 3.8k</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="bg-white rounded-xl p-4 border card-hover cursor-pointer">
+              <div class="flex items-start gap-3">
+                <span class="text-2xl">⚠️</span>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="badge-risk text-xs px-2 py-0.5 rounded">风险</span>
+                    <span class="text-xs text-gray-500">昨天</span>
+                  </div>
+                  <h3 class="font-semibold text-gray-900 mb-1">TikTok Shop泰国加强产品认证审核，电子产品需TISI认证</h3>
+                  <p class="text-sm text-gray-600 line-clamp-2">TikTok Shop泰国站宣布，自3月15日起，所有电子产品需提供TISI认证证书，否则将下架处理...</p>
+                  <div class="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                    <span>来源: TikTok Shop卖家中心</span>
+                    <span>·</span>
+                    <span>阅读 8.1k</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="bg-white rounded-xl p-4 border card-hover cursor-pointer">
+              <div class="flex items-start gap-3">
+                <span class="text-2xl">📊</span>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="badge-guide text-xs px-2 py-0.5 rounded">指南</span>
+                    <span class="text-xs text-gray-500">3天前</span>
+                  </div>
+                  <h3 class="font-semibold text-gray-900 mb-1">2025泰国电商趋势报告：这5个品类值得重点关注</h3>
+                  <p class="text-sm text-gray-600 line-clamp-2">基于泰国电商委员会最新数据，我们分析了1000+热销产品，总结出2025年最具潜力的5大品类...</p>
+                  <div class="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                    <span>来源: 3Strategy分析</span>
+                    <span>·</span>
+                    <span>阅读 12.3k</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- 机会发现 -->
+        <section id="opportunities">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold">💰 机会发现</h2>
+            <a href="#" class="text-sm text-gray-500 hover:text-gray-900">查看全部 →</a>
+          </div>
+          <div class="grid md:grid-cols-2 gap-3">
+            <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100 card-hover cursor-pointer">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-lg">🏠</span>
+                <span class="badge-opportunity text-xs px-2 py-0.5 rounded">高机会</span>
+              </div>
+              <h3 class="font-semibold text-gray-900 mb-1">智能家居</h3>
+              <p class="text-sm text-gray-600">泰国中产对智能家居需求激增，智能灯泡、插座月售5万+</p>
+              <div class="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                <span>竞争度: 中</span>
+                <span>·</span>
+                <span>利润率: 35-45%</span>
+              </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100 card-hover cursor-pointer">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-lg">💄</span>
+                <span class="badge-opportunity text-xs px-2 py-0.5 rounded">高机会</span>
+              </div>
+              <h3 class="font-semibold text-gray-900 mb-1">韩系美妆</h3>
+              <p class="text-sm text-gray-600">受K-culture影响，韩妆在泰持续火热，国货平替大有可为</p>
+              <div class="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                <span>竞争度: 低</span>
+                <span>·</span>
+                <span>利润率: 50-60%</span>
+              </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100 card-hover cursor-pointer">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-lg">🧘</span>
+                <span class="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">新兴</span>
+              </div>
+              <h3 class="font-semibold text-gray-900 mb-1">瑜伽健身</h3>
+              <p class="text-sm text-gray-600">后疫情时代健康意识提升，瑜伽用品、健身器材销量稳步增长</p>
+              <div class="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                <span>竞争度: 中</span>
+                <span>·</span>
+                <span>利润率: 40-50%</span>
+              </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100 card-hover cursor-pointer">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-lg">🐱</span>
+                <span class="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">新兴</span>
+              </div>
+              <h3 class="font-semibold text-gray-900 mb-1">宠物用品</h3>
+              <p class="text-sm text-gray-600">泰国宠物经济爆发，猫粮、猫砂、玩具进口需求旺盛</p>
+              <div class="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                <span>竞争度: 中</span>
+                <span>·</span>
+                <span>利润率: 35-45%</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 风险预警 -->
+        <section id="risks">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold">⚠️ 风险预警</h2>
+            <a href="#" class="text-sm text-gray-500 hover:text-gray-900">查看全部 →</a>
+          </div>
+          <div class="space-y-3">
+            <div class="bg-red-50 rounded-xl p-4 border border-red-100">
+              <div class="flex items-start gap-3">
+                <span class="text-xl">🚨</span>
+                <div>
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs bg-red-200 text-red-800 px-2 py-0.5 rounded">重要</span>
+                    <span class="text-xs text-gray-500">3月8日更新</span>
+                  </div>
+                  <h3 class="font-semibold text-gray-900 mb-1">泰国海关严查低申报，价值低于500泰铢也需缴税</h3>
+                  <p class="text-sm text-gray-600">海关总署新规：所有进口包裹均需申报真实价值，低申报将面临罚款或扣押</p>
+                  <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="text-gray-500">影响范围: 所有跨境电商</span>
+                    <span class="text-gray-500">·</span>
+                    <span class="text-red-600">建议: 合规申报</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-orange-50 rounded-xl p-4 border border-orange-100">
+              <div class="flex items-start gap-3">
+                <span class="text-xl">⚡</span>
+                <div>
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs bg-orange-200 text-orange-800 px-2 py-0.5 rounded">注意</span>
+                    <span class="text-xs text-gray-500">3月5日更新</span>
+                  </div>
+                  <h3 class="font-semibold text-gray-900 mb-1">Lazada泰国调整佣金结构，部分品类费率上升2-3%</h3>
+                  <p class="text-sm text-gray-600">电子、家居品类佣金调整，建议卖家重新评估定价策略</p>
+                  <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="text-gray-500">影响平台: Lazada</span>
+                    <span class="text-gray-500">·</span>
+                    <span class="text-orange-600">建议: 关注成本</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- 右侧边栏 -->
+      <aside class="space-y-6">
+
+        <!-- 平台入口 - 增强版 -->
+        <section id="platforms">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-2xl">🛒</span>
+            <h2 class="text-lg font-bold">平台指南</h2>
+          </div>
+          <div class="space-y-2">
+            <a href="#" class="block bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200 card-hover">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow">S</div>
+                <div class="flex-1">
+                  <div class="font-semibold text-gray-900">Shopee泰国 🇹🇭</div>
+                  <div class="text-xs text-gray-600">市场份额: 42% · 卖家数: 50万+ · 9.9大促</div>
+                </div>
+                <div class="text-right">
+                  <span class="block text-xs text-green-600 bg-green-100 px-2 py-1 rounded mb-1">最推荐</span>
+                  <span class="block text-xs text-orange-600">🔥 热门</span>
+                </div>
+              </div>
+              <div class="mt-2 flex gap-2">
+                <span class="text-xs bg-white px-2 py-1 rounded text-gray-600 border">📖 开店指南</span>
+                <span class="text-xs bg-white px-2 py-1 rounded text-gray-600 border">💰 费用</span>
+                <span class="text-xs bg-white px-2 py-1 rounded text-gray-600 border">📊 运营</span>
+              </div>
+            </a>
+
+            <a href="#" class="block bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-200 card-hover">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow">L</div>
+                <div class="flex-1">
+                  <div class="font-semibold text-gray-900">Lazada泰国 🇹🇭</div>
+                  <div class="text-xs text-gray-600">市场份额: 35% · 卖家数: 30万+ · LazMall</div>
+                </div>
+              </div>
+              <div class="mt-2 flex gap-2">
+                <span class="text-xs bg-white px-2 py-1 rounded text-gray-600 border">📖 开店指南</span>
+                <span class="text-xs bg-white px-2 py-1 rounded text-gray-600 border">💰 费用</span>
+              </div>
+            </a>
+
+            <a href="#" class="block bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-4 border border-gray-200 card-hover">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-gradient-to-br from-gray-800 to-black rounded-xl flex items-center justify-center text-white font-bold shadow">
+                  <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25C15.26 2.53 13.94 2 12 2c-1.94 0-3.26.53-4.82 4.44a4.83 4.83 0 0 1-3.77 4.25c0 1.5.7 2.83 1.77 3.65L4.44 14.6c-.3.35-.53.76-.53 1.2v4.2c0 1.4 1.13 2.53 2.53 2.53h8.94c1.4 0 2.53-1.13 2.53-2.53v-4.2c0-.44-.23-.85-.53-1.2l-3.73-3.93c1.07-.82 1.77-2.15 1.77-3.65 0-.47-.08-.92-.22-1.34.59-.34 1.05-.85 1.35-1.45z"/></svg>
+                </div>
+                <div class="flex-1">
+                  <div class="font-semibold text-gray-900">TikTok Shop 🇹🇭</div>
+                  <div class="text-xs text-gray-600">市场份额: 18% · 增长最快 · 直播带货</div>
+                </div>
+                <span class="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded">新兴</span>
+              </div>
+              <div class="mt-2 flex gap-2">
+                <span class="text-xs bg-white px-2 py-1 rounded text-gray-600 border">📖 开店指南</span>
+                <span class="text-xs bg-white px-2 py-1 rounded text-gray-600 border">🎬 直播带货</span>
+              </div>
+            </a>
+          </div>
+        </section>
+
+        <!-- 热销产品 - 泰国特色 -->
+        <section id="hot-products">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-2xl">🔥</span>
+            <h2 class="text-lg font-bold">热销产品</h2>
+            <span class="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">泰国热卖</span>
+          </div>
+          <div class="bg-gradient-to-b from-orange-50 to-white rounded-xl border border-orange-100 overflow-hidden">
+            <div class="divide-y">
+              <div class="p-3 flex items-center gap-3 hover:bg-orange-50 cursor-pointer transition">
+                <span class="text-2xl">🎧</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm truncate">蓝牙耳机TWS</div>
+                  <div class="text-xs text-gray-500">Shopee月销: 12万+ · 曼谷爆款</div>
+                </div>
+                <span class="text-xs text-green-600 font-medium">↑32%</span>
+              </div>
+              <div class="p-3 flex items-center gap-3 hover:bg-orange-50 cursor-pointer transition">
+                <span class="text-2xl">💡</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm truncate">LED智能灯泡</div>
+                  <div class="text-xs text-gray-500">Shopee月销: 8万+ · 智能家居</div>
+                </div>
+                <span class="text-xs text-green-600 font-medium">↑28%</span>
+              </div>
+              <div class="p-3 flex items-center gap-3 hover:bg-orange-50 cursor-pointer transition">
+                <span class="text-2xl">👜</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm truncate">时尚女包</div>
+                  <div class="text-xs text-gray-500">Lazada月销: 5万+ · 曼谷时尚</div>
+                </div>
+                <span class="text-xs text-green-600 font-medium">↑15%</span>
+              </div>
+              <div class="p-3 flex items-center gap-3 hover:bg-orange-50 cursor-pointer transition">
+                <span class="text-2xl">👗</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm truncate">瑜伽服套装</div>
+                  <div class="text-xs text-gray-500">TikTok月销: 3万+ · 健康风潮</div>
+                </div>
+                <span class="text-xs text-green-600 font-medium">↑45%</span>
+              </div>
+              <div class="p-3 flex items-center gap-3 hover:bg-orange-50 cursor-pointer transition">
+                <span class="text-2xl">🍜</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm truncate">泰式调料套装</div>
+                  <div class="text-xs text-gray-500">Shopee月销: 6万+ · 本地特色</div>
+                </div>
+                <span class="text-xs text-green-600 font-medium">↑22%</span>
+              </div>
+              <div class="p-3 flex items-center gap-3 hover:bg-orange-50 cursor-pointer transition">
+                <span class="text-2xl">🌺</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm truncate">香薰精油</div>
+                  <div class="text-xs text-gray-500">Shopee月销: 4万+ · 芳疗热销</div>
+                </div>
+                <span class="text-xs text-green-600 font-medium">↑38%</span>
+              </div>
+            </div>
+            <a href="#" class="block text-center py-3 text-sm text-gray-500 hover:text-gray-900 hover:bg-orange-50 transition">查看更多热销产品 →</a>
+          </div>
+        </section>
+                  <div class="text-xs text-gray-500">TikTok月销: 3万+</div>
+                </div>
+                <span class="text-xs text-green-600">↑45%</span>
+              </div>
+              <div class="p-3 flex items-center gap-3 hover:bg-gray-50 cursor-pointer">
+                <span class="text-lg">🍳</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm truncate">厨房小工具</div>
+                  <div class="text-xs text-gray-500">Shopee月销: 6万+</div>
+                </div>
+                <span class="text-xs text-green-600">↑22%</span>
+              </div>
+            </div>
+            <a href="#" class="block text-center py-2 text-sm text-gray-500 hover:text-gray-900 border-t">查看更多 →</a>
+          </div>
+        </section>
+
+        <!-- 成本参考 -->
+        <section id="costs">
+          <h2 class="text-lg font-bold mb-4">💵 成本参考</h2>
+          <div class="bg-white rounded-xl border p-4">
+            <table class="w-full text-sm">
+              <tbody class="divide-y">
+                <tr>
+                  <td class="py-2 text-gray-600">Shopee开店</td>
+                  <td class="py-2 text-right font-medium">免费</td>
+                </tr>
+                <tr>
+                  <td class="py-2 text-gray-600">Lazada开店</td>
+                  <td class="py-2 text-right font-medium">฿1,500/年</td>
+                </tr>
+                <tr>
+                  <td class="py-2 text-gray-600">TikTok开店</td>
+                  <td class="py-2 text-right font-medium">免费</td>
+                </tr>
+                <tr>
+                  <td class="py-2 text-gray-600">平均佣金</td>
+                  <td class="py-2 text-right font-medium">5-8%</td>
+                </tr>
+                <tr>
+                  <td class="py-2 text-gray-600">物流(国内→泰国)</td>
+                  <td class="py-2 text-right font-medium">¥15-25/kg</td>
+                </tr>
+                <tr>
+                  <td class="py-2 text-gray-600">本地派送</td>
+                  <td class="py-2 text-right font-medium">฿25-40/单</td>
+                </tr>
+              </tbody>
+            </table>
+            <a href="#" class="block text-center text-sm text-gray-500 mt-3 hover:text-gray-900">详细费用计算器 →</a>
+          </div>
+        </section>
+
+        <!-- 快速入口 -->
+        <section class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+          <h3 class="font-semibold mb-3">🚀 开始泰国之旅</h3>
+          <div class="space-y-2">
+            <a href="#" class="block text-sm text-purple-700 hover:text-purple-900 py-1">→ 开店流程指南</a>
+            <a href="#" class="block text-sm text-purple-700 hover:text-purple-900 py-1">→ 选品分析报告</a>
+            <a href="#" class="block text-sm text-purple-700 hover:text-purple-900 py-1">→ 物流解决方案</a>
+            <a href="#" class="block text-sm text-purple-700 hover:text-purple-900 py-1">→ 成本计算器</a>
+          </div>
+        </section>
+
+      </aside>
+    </div>
+
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="bg-white border-t mt-12">
+    <div class="max-w-7xl mx-auto px-4 py-6">
+      <div class="flex items-center justify-between text-sm text-gray-600">
+        <div>© 2025 3Strategy - 跨境电商智能信息平台</div>
+        <div class="flex items-center gap-4">
+          <a href="#" class="hover:text-gray-900">关于我们</a>
+          <a href="#" class="hover:text-gray-900">联系客服</a>
+          <a href="#" class="hover:text-gray-900">隐私政策</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // 平滑滚动
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        const href = this.getAttribute('href');
+        if (href !== '#' && href.startsWith('#')) {
+          e.preventDefault();
+          const target = document.querySelector(href);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+      });
+    });
+
+    // 标签高亮
+    const navLinks = document.querySelectorAll('[id^="section"]');
+    window.addEventListener('scroll', () => {
+      let current = '';
+      navLinks.forEach(section => {
+        const sectionTop = section.offsetTop;
+        if (scrollY >= sectionTop - 100) {
+          current = section.getAttribute('id');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

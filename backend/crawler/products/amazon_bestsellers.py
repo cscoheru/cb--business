@@ -265,40 +265,48 @@ class AmazonBestSellersCrawler:
     ) -> Optional[AmazonProduct]:
         """解析商品元素"""
         try:
-            # ASIN (Amazon 商品 ID)
-            asin = await element.get_attribute('data-asin')
-            if not asin:
-                return None
+            # Amazon Best Sellers 页面结构:
+            # #gridItemRoot 包含排名徽章和商品信息
+            # ASIN 在链接中 (/dp/ASIN)
 
-            # 商品标题
-            title = ""
-            title_selectors = [
-                'h2 a span',
-                '.a-size-mini a span',
-                '[data-cy="title-recipe-title"]',
-                'h2 .a-link-normal',
-            ]
-            for selector in title_selectors:
-                title_elem = await element.query_selector(selector)
-                if title_elem:
-                    title = await title_elem.inner_text()
-                    if title:
-                        break
-
-            if not title:
-                title = f"Amazon Product {asin}"
-
-            # 商品链接
+            # 从商品链接中提取 ASIN
+            product_links = await element.query_selector_all('a.a-link-normal[href*="/dp/"]')
+            asin = None
             product_url = ""
-            link_elem = await element.query_selector('h2 a')
-            if link_elem:
-                href = await link_elem.get_attribute('href')
+
+            if product_links:
+                href = await product_links[0].get_attribute('href')
                 if href:
+                    # 从 URL 中提取 ASIN
+                    import re
+                    asin_match = re.search(r'/dp/([A-Z0-9]{10})', href)
+                    if asin_match:
+                        asin = asin_match.group(1)
+
+                    # 构建完整 URL
                     if href.startswith('/'):
                         base_url = self.COUNTRY_CONFIGS[country]["url"]
                         product_url = f"{base_url}{href}"
-                    else:
-                        product_url = href
+
+            if not asin:
+                return None
+
+            # 商品标题 - 查找包含商品标题的链接
+            title = ""
+            title_links = await element.query_selector_all('a.a-link-normal, div.a-section.a-spacing-small p')
+            for link in title_links:
+                try:
+                    text = await link.inner_text()
+                    if text and len(text) > 15 and len(text) < 200:  # 标题通常在这个长度范围内
+                        # 过滤掉评分、价格等非标题内容
+                        if not any(x in text.lower() for x in ['stars', 'rating', '$', 'offers', 'prime']):
+                            title = text.strip()
+                            break
+                except:
+                    pass
+
+            if not title:
+                title = f"Amazon Product {asin}"
 
             # 价格
             price = 0.0
@@ -379,7 +387,7 @@ class AmazonBestSellersCrawler:
                 country=country,
                 platform="amazon",
                 is_prime=is_prime,
-                is_amazon=is_amazon_choice,
+                is_amazon_choice=is_amazon_choice,
             )
 
         except Exception as e:

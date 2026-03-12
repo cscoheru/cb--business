@@ -1,0 +1,149 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "CB Business" [ref=e4] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=e5]:
+        - link "定价" [ref=e6] [cursor=pointer]:
+          - /url: /pricing
+        - link "Dashboard" [ref=e7] [cursor=pointer]:
+          - /url: /dashboard
+        - button "登录" [ref=e8]
+        - button "免费注册" [ref=e9]
+  - main [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - heading "早上好，创业者！" [level=1] [ref=e13]
+        - paragraph [ref=e14]: 今天有 3个 新机会等待您
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - heading "您的探索之旅" [level=2] [ref=e17]
+          - paragraph [ref=e18]: 已完成 2/5 步骤
+        - generic [ref=e19]:
+          - generic [ref=e20]:
+            - img [ref=e23]
+            - generic [ref=e25]:
+              - heading "选择目标市场" [level=3] [ref=e27]
+              - paragraph [ref=e28]: 选择您想了解的市场区域
+          - generic [ref=e29]:
+            - img [ref=e32]
+            - generic [ref=e34]:
+              - heading "探索市场机会" [level=3] [ref=e36]
+              - paragraph [ref=e37]: 查看AI为您推荐的市场机会
+          - generic [ref=e38]:
+            - generic [ref=e41]: "3"
+            - generic [ref=e42]:
+              - generic [ref=e43]:
+                - heading "分析成本利润" [level=3] [ref=e44]
+                - generic [ref=e45]: 进行中
+              - paragraph [ref=e46]: 使用成本计算器评估可行性
+          - generic [ref=e47]:
+            - generic [ref=e50]: "4"
+            - generic [ref=e51]:
+              - generic [ref=e52]:
+                - heading "寻找供应商" [level=3] [ref=e53]
+                - generic [ref=e54]: 专业版
+              - paragraph [ref=e55]: 从供应商数据库找到合适伙伴
+          - generic [ref=e56]:
+            - generic [ref=e59]: "5"
+            - generic [ref=e60]:
+              - generic [ref=e61]:
+                - heading "制定进入策略" [level=3] [ref=e62]
+                - generic [ref=e63]: 专业版
+              - paragraph [ref=e64]: 获取详细的市场进入方案
+      - generic [ref=e65]:
+        - link "🔍 发现机会 查看AI推荐的新机会 立即查看" [ref=e66] [cursor=pointer]:
+          - /url: /dashboard/opportunities
+          - generic [ref=e67]:
+            - generic [ref=e68]: 🔍
+            - heading "发现机会" [level=3] [ref=e69]
+            - paragraph [ref=e70]: 查看AI推荐的新机会
+            - generic [ref=e71]:
+              - generic [ref=e72]: 立即查看
+              - img [ref=e73]
+        - link "⚠️ 风险预警 查看最新风险提示 立即查看" [ref=e75] [cursor=pointer]:
+          - /url: /dashboard/risks
+          - generic [ref=e76]:
+            - generic [ref=e77]: ⚠️
+            - heading "风险预警" [level=3] [ref=e78]
+            - paragraph [ref=e79]: 查看最新风险提示
+            - generic [ref=e80]:
+              - generic [ref=e81]: 立即查看
+              - img [ref=e82]
+        - link "💰 成本计算 计算产品成本和利润 立即查看" [ref=e84] [cursor=pointer]:
+          - /url: /dashboard/tools/cost-calculator
+          - generic [ref=e85]:
+            - generic [ref=e86]: 💰
+            - heading "成本计算" [level=3] [ref=e87]
+            - paragraph [ref=e88]: 计算产品成本和利润
+            - generic [ref=e89]:
+              - generic [ref=e90]: 立即查看
+              - img [ref=e91]
+      - generic [ref=e93]:
+        - generic [ref=e94]:
+          - heading "为您推荐" [level=2] [ref=e95]
+          - link "查看全部 →" [ref=e96] [cursor=pointer]:
+            - /url: /dashboard/opportunities
+        - generic [ref=e97]:
+          - generic [ref=e98]:
+            - generic [ref=e99]:
+              - generic [ref=e100]:
+                - generic [ref=e101]: 东南亚
+                - heading "东南亚宠物用品市场" [level=3] [ref=e102]
+                - paragraph [ref=e103]: 宠物用品
+              - img [ref=e105]
+            - paragraph [ref=e108]: 随着中产阶级崛起，宠物领养率同比增长40%，但本土供应链薄弱，中国产品有明显价格优势。
+            - generic [ref=e109]:
+              - generic [ref=e110]:
+                - img [ref=e111]
+                - generic [ref=e113]: 预估利润率 25-35%
+              - link "查看详情" [ref=e114] [cursor=pointer]:
+                - /url: /dashboard/opportunities/1
+                - button "查看详情" [ref=e115]
+          - generic [ref=e116]:
+            - generic [ref=e117]:
+              - generic [ref=e118]:
+                - generic [ref=e119]: 拉美
+                - heading "拉美智能家居小工具" [level=3] [ref=e120]
+                - paragraph [ref=e121]: 智能家居
+              - img [ref=e123]
+            - paragraph [ref=e126]: 智能门锁、智能插座等入门级产品需求激增，当地品牌少，主要依赖进口。
+            - generic [ref=e127]:
+              - generic [ref=e128]:
+                - img [ref=e129]
+                - generic [ref=e131]: 预估利润率 25-35%
+              - link "查看详情" [ref=e132] [cursor=pointer]:
+                - /url: /dashboard/opportunities/2
+                - button "查看详情" [ref=e133]
+      - generic [ref=e134]:
+        - generic [ref=e135]:
+          - heading "最新风险预警" [level=2] [ref=e136]
+          - link "查看全部 →" [ref=e137] [cursor=pointer]:
+            - /url: /dashboard/risks
+        - generic [ref=e138]:
+          - paragraph [ref=e139]: 暂无新风险预警
+          - paragraph [ref=e140]: 我们会持续监控您关注市场的政策变化
+      - generic [ref=e141]:
+        - heading "数据概览" [level=2] [ref=e142]
+        - generic [ref=e143]:
+          - generic [ref=e144]:
+            - generic [ref=e145]: "12"
+            - generic [ref=e146]: 已保存的机会
+          - generic [ref=e147]:
+            - generic [ref=e148]: "3"
+            - generic [ref=e149]: 关注的市场
+          - generic [ref=e150]:
+            - generic [ref=e151]: "5"
+            - generic [ref=e152]: 成本计算次数
+          - generic [ref=e153]:
+            - generic [ref=e154]: "2"
+            - generic [ref=e155]: 活跃预警
+  - contentinfo [ref=e156]:
+    - paragraph [ref=e158]: © 2025 Cross-Border Business. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=e164] [cursor=pointer]:
+    - img [ref=e165]
+  - alert [ref=e168]: 早上好，创业者！
+```

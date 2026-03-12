@@ -132,7 +132,7 @@ class GoogleTrendsClient:
                             related_queries=item.get("relatedQueries", [])[:5],
                             timestamp=datetime.now(),
                             country=country.upper(),
-                            category_code,
+                            category=category_code,
                         )
                         topics.append(topic)
 

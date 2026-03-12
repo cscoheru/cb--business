@@ -39,4 +39,6 @@ sqlalchemy-utils>=0.41.1
 # 趋势分析
 pytrends>=4.9.2  # Google Trends 非官方 API
 requests>=2.31.0  # pytrends 依赖
+praw>=7.7.1  # Reddit API
+google-api-python-client>=2.100.0  # YouTube Data API
 

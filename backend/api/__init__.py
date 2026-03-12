@@ -26,6 +26,7 @@ from api.products import router as products_router
 from api.lazada import router as lazada_router
 from api.trends import router as trends_router
 from api.opportunities import router as opportunities_router
+from api.social import router as social_router
 
 
 # 创建FastAPI应用
@@ -114,6 +115,7 @@ app.include_router(products_router)
 app.include_router(lazada_router)
 app.include_router(trends_router)
 app.include_router(opportunities_router)
+app.include_router(social_router)
 
 # 可选的 crawler 路由（依赖可能未安装）
 try:

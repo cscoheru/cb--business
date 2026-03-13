@@ -331,30 +331,32 @@ async def batch_update_classifications(
                         item.platform = update_data.get("platform")
                         item.tags = update_data.get("keywords", [])
                         item.opportunity_score = update_data.get("opportunity_score", 0.5)
-                        item.ai_analyzed = True
-                        item.ai_analyzed_at = datetime.now()
+                        item.risk_level = update_data.get("risk_level")
+                        item.is_processed = True
                         updated_count += 1
                     else:
                         failed_count += 1
                         errors.append(f"Article {item_id} not found")
 
                 elif item_type == "card":
-                    # 更新Card的AI分类
+                    # 更新Card的AI分类 - 存储在analysis字段中
                     result = await db.execute(
                         select(Card).where(Card.id == item_id)
                     )
                     item = result.scalar_one_or_none()
 
                     if item:
-                        item.content_theme = update_data.get("content_theme")
-                        item.region = update_data.get("region")
-                        item.platform = update_data.get("platform")
+                        # 更新analysis JSONB字段
+                        if not item.analysis:
+                            item.analysis = {}
+                        item.analysis["content_theme"] = update_data.get("content_theme")
+                        item.analysis["region"] = update_data.get("region")
+                        item.analysis["platform"] = update_data.get("platform")
+                        item.analysis["opportunity_score"] = update_data.get("opportunity_score", 0.5)
                         # keywords可以存储在amazon_data中
                         if item.amazon_data:
                             item.amazon_data["ai_keywords"] = update_data.get("keywords", [])
-                            item.amazon_data["opportunity_score"] = update_data.get("opportunity_score", 0.5)
-                        item.ai_analyzed = True
-                        item.ai_analyzed_at = datetime.now()
+                            item.amazon_data["ai_analyzed"] = True
                         updated_count += 1
                     else:
                         failed_count += 1
@@ -416,8 +418,7 @@ async def get_unclassified_items(
             # 获取未AI分析的文章
             result = await db.execute(
                 select(Article)
-                .where(Article.ai_analyzed == None)
-                .where(Article.ai_analyzed_at == None)
+                .where(Article.is_processed == False)
                 .order_by(Article.created_at.desc())
                 .limit(limit // 2 if type == "all" else limit)
             )
@@ -429,8 +430,8 @@ async def get_unclassified_items(
                     "type": "article",
                     "title": article.title,
                     "summary": article.summary,
-                    "url": article.url,
-                    "created_at": article.created_at.isoformat()
+                    "url": article.link,
+                    "created_at": article.crawled_at.isoformat() if article.crawled_at else article.published_at.isoformat() if article.published_at else None
                 })
 
         if type in ["all", "products"]:
@@ -438,20 +439,22 @@ async def get_unclassified_items(
             result = await db.execute(
                 select(Card)
                 .where(Card.amazon_data.isnot(None))
-                .where(Card.ai_analyzed == None)
                 .order_by(Card.created_at.desc())
                 .limit(limit // 2 if type == "all" else limit)
             )
             cards = result.scalars().all()
 
             for card in cards:
-                items.append({
-                    "id": card.id,
-                    "type": "card",
-                    "title": card.title,
-                    "category": card.category,
-                    "created_at": card.created_at.isoformat()
-                })
+                # 检查是否已经AI分析过
+                is_analyzed = card.amazon_data and card.amazon_data.get("ai_analyzed") if card.amazon_data else False
+                if not is_analyzed:
+                    items.append({
+                        "id": card.id,
+                        "type": "card",
+                        "title": card.title,
+                        "category": card.category,
+                        "created_at": card.created_at.isoformat()
+                    })
 
         return {
             "success": True,
@@ -482,7 +485,7 @@ async def get_batch_operation_status(
         total_articles = len(article_result.all())
 
         analyzed_result = await db.execute(
-            select(Article.id).where(Article.ai_analyzed == True)
+            select(Article.id).where(Article.is_processed == True)
         )
         analyzed_articles = len(analyzed_result.all())
 
@@ -502,7 +505,7 @@ async def get_batch_operation_status(
             "statistics": {
                 "articles": {
                     "total": total_articles,
-                    "ai_analyzed": analyzed_articles,
+                    "processed": analyzed_articles,
                     "pending_analysis": total_articles - analyzed_articles
                 },
                 "cards": {

@@ -1,8 +1,8 @@
 # models/card.py
 """信息卡片数据模型"""
 
-from sqlalchemy import Column, String, DateTime, Integer, Boolean, JSON, Index
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, DateTime, Integer, Boolean, Index
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from datetime import datetime
 import uuid
 

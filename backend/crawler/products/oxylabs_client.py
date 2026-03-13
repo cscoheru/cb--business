@@ -27,13 +27,32 @@ logger = logging.getLogger(__name__)
 class OxylabsConfig:
     """Oxylabs API 配置"""
     base_url: str = "https://realtime.oxylabs.io/v1/queries"
-    username: str = os.getenv("OXYLABS_USERNAME", "fisher_D2vWh")
-    password: str = os.getenv("OXYLABS_PASSWORD", "")
+    # 数据中心代理 (推荐: 稳定、美国IP、适合Amazon)
+    dc_proxy_url: str = os.getenv("OXYLABS_DC_PROXY", "dc.oxylabs.io:8000")
+    dc_username: str = os.getenv("OXYLABS_DC_USERNAME", "user-fisher_VqeJc-country-US")
+    dc_password: str = os.getenv("OXYLABS_DC_PASSWORD", "ObdZN+nqNX1Xg")
+
+    # Web Unblocker代理 (备用: 动态IP、绕过反爬虫)
     proxy_url: str = os.getenv("OXYLABS_PROXY", "http://unblock.oxylabs.io:60000")
+    username: str = os.getenv("OXYLABS_USERNAME", "fisher_D2vWh")
+    password: str = os.getenv("OXYLABS_PASSWORD", "n=aB3Fr6EDfU")
+
+    # 默认使用数据中心代理
+    use_dc_proxy: bool = True
 
     @property
     def auth(self) -> tuple:
+        """返回认证凭据 (根据代理类型)"""
+        if self.use_dc_proxy:
+            return (self.dc_username, self.dc_password)
         return (self.username, self.password)
+
+    @property
+    def proxy(self) -> Optional[str]:
+        """返回代理URL (根据代理类型)"""
+        if self.use_dc_proxy:
+            return f"http://{self.dc_proxy_url}"
+        return self.proxy_url
 
 
 class OxylabsClient:
@@ -44,12 +63,14 @@ class OxylabsClient:
 
         # 配置代理
         proxies = None
-        if self.config.proxy_url:
+        proxy_url = self.config.proxy
+        if proxy_url:
             proxies = {
-                "http://": self.config.proxy_url,
-                "https://": self.config.proxy_url,
+                "http://": proxy_url,
+                "https://": proxy_url,
             }
-            logger.info(f"🌐 使用Oxylabs代理: {self.config.proxy_url}")
+            proxy_type = "数据中心代理" if self.config.use_dc_proxy else "Web Unblocker"
+            logger.info(f"🌐 使用Oxylabs{proxy_type}: {proxy_url}")
 
         self.client = httpx.AsyncClient(
             auth=self.config.auth,

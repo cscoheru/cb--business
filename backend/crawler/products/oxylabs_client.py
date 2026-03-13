@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 class OxylabsConfig:
     """Oxylabs API 配置"""
     base_url: str = "https://realtime.oxylabs.io/v1/queries"
-    username: str = os.getenv("OXYLABS_USERNAME", "fisher_VEpfJ")
-    password: str = os.getenv("OXYLABS_PASSWORD", "z7UnsI2Hkug_")
+    username: str = os.getenv("OXYLABS_USERNAME", "fisher_VEpfJ.kCtsXux5mL~JX")
+    password: str = os.getenv("OXYLABS_PASSWORD", "")
 
     @property
     def auth(self) -> tuple:

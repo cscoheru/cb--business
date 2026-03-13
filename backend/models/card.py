@@ -13,12 +13,12 @@ class Card(Base):
     """信息卡片模型"""
     __tablename__ = 'cards'
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String(200), nullable=False, index=True)
     category = Column(String(50), nullable=False, index=True)
-    content = Column(JSON, nullable=False)
-    analysis = Column(JSON, nullable=False)
-    amazon_data = Column(JSON, nullable=True)
+    content = Column(JSONB, nullable=False)
+    analysis = Column(JSONB, nullable=False)
+    amazon_data = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, index=True)
     published_at = Column(DateTime(timezone=True), nullable=True)
     views = Column(Integer, default=0)

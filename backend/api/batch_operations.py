@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 from dateutil import parser as datetime_parser
+from uuid import uuid4
 import logging
 
 from sqlalchemy import select
@@ -162,6 +163,7 @@ async def batch_create_articles(
                 else:
                     # 创建新文章 - map fields correctly
                     new_article = Article(
+                        id=uuid4(),
                         title=article_data.get("title", ""),
                         summary=article_data.get("summary") or article_data.get("content", "")[:500],
                         full_content=article_data.get("content"),

@@ -14,8 +14,9 @@ OpenClaw Channels通过这些API端点批量写入数据到PostgreSQL。
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
+from dateutil import parser as datetime_parser
 import logging
 
 from sqlalchemy import select
@@ -89,6 +90,25 @@ class UnclassifiedItemRequest(BaseModel):
 
 
 # ============================================================================
+# Helper Functions
+# ============================================================================
+
+def parse_datetime(value: Union[str, datetime, None]) -> Optional[datetime]:
+    """Parse datetime from string or return existing datetime object"""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime_parser.parse(value)
+        except (ValueError, TypeError):
+            logger.warning(f"Failed to parse datetime: {value}")
+            return None
+    return None
+
+
+# ============================================================================
 # Batch Articles Endpoints
 # ============================================================================
 
@@ -134,6 +154,8 @@ async def batch_create_articles(
                             continue
                         if key == 'source_name':
                             key = 'source'
+                        elif key == 'published_at':
+                            value = parse_datetime(value)
                         if hasattr(existing_article, key):
                             setattr(existing_article, key, value)
                     updated_count += 1
@@ -146,7 +168,7 @@ async def batch_create_articles(
                         link=article_url,
                         source=article_data.get("source_name") or article_data.get("source", "OpenClaw"),
                         language=article_data.get("language", "en"),
-                        published_at=article_data.get("published_at")
+                        published_at=parse_datetime(article_data.get("published_at"))
                     )
                     db.add(new_article)
                     created_count += 1

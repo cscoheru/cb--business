@@ -419,7 +419,7 @@ async def get_unclassified_items(
             result = await db.execute(
                 select(Article)
                 .where(Article.is_processed == False)
-                .order_by(Article.created_at.desc())
+                .order_by(Article.crawled_at.desc())
                 .limit(limit // 2 if type == "all" else limit)
             )
             articles = result.scalars().all()
@@ -431,7 +431,7 @@ async def get_unclassified_items(
                     "title": article.title,
                     "summary": article.summary,
                     "url": article.link,
-                    "created_at": article.crawled_at.isoformat() if article.crawled_at else article.published_at.isoformat() if article.published_at else None
+                    "created_at": article.crawled_at.isoformat() if article.crawled_at else (article.published_at.isoformat() if article.published_at else None)
                 })
 
         if type in ["all", "products"]:

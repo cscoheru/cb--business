@@ -15,9 +15,9 @@ class AirwallexConfig:
     """Airwallex Configuration"""
 
     # API Keys (set in environment variables)
-    API_KEY = os.getenv("AIRWALLEX_API_KEY", "")
-    SCOPED_API_KEY = os.getenv("AIRWALLEX_SCOPED_API_KEY", "5d407acf3dfa6535f89cb5dc0b8f1a4c97037fa64c54d67544fd6371b8b0e4618e09c6d8a34ff6cfb3069d4aade80e57")
-    API_BASE_URL = os.getenv("AIRWALLEX_API_URL", "https://api-airwallex.com")
+    API_KEY = os.getenv("AIRWALLEX_API_KEY", "94cccd73cbc3cd1252a47039f3cadbcf011faa9b924aa589f0adb095dc2fb3fe5cff850b297e72024fd1383aef7a4dd0")
+    SCOPED_API_KEY = os.getenv("AIRWALLEX_SCOPED_API_KEY", "")  # For frontend only
+    API_BASE_URL = os.getenv("AIRWALLEX_API_URL", "https://api.airwallex.com")
 
     # Account & Organization IDs
     ACCOUNT_ID = os.getenv("AIRWALLEX_ACCOUNT_ID", "acct_iViBmbvbOzuOUVZexPSWuA")

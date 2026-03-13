@@ -42,9 +42,8 @@ class OxylabsConfig:
 
     @property
     def auth(self) -> tuple:
-        """返回认证凭据 (根据代理类型)"""
-        if self.use_dc_proxy:
-            return (self.dc_username, self.dc_password)
+        """返回Oxylabs API认证凭据 (与代理认证分离)"""
+        # API认证始终使用主账户凭证，与代理类型无关
         return (self.username, self.password)
 
     @property

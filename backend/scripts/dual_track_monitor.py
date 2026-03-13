@@ -134,8 +134,8 @@ class DualTrackMonitor:
             stats = result.first()
 
             now = datetime.now()
-            article_age = (now - stats.latest_article).total_seconds() / 60 if stats.latest_article else 999
-            card_age = (now - stats.latest_card).total_seconds() / 60 if stats.latest_card else 999
+            article_age = (now.replace(tzinfo=None) - stats.latest_article.replace(tzinfo=None)).total_seconds() / 60 if stats.latest_article else 999
+            card_age = (now.replace(tzinfo=None) - stats.latest_card.replace(tzinfo=None)).total_seconds() / 60 if stats.latest_card else 999
 
             return {
                 'article_age_minutes': int(article_age),

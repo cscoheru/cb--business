@@ -18,6 +18,15 @@ class AirwallexConfig:
     API_KEY = os.getenv("AIRWALLEX_API_KEY", "")
     API_BASE_URL = os.getenv("AIRWALLEX_API_URL", "https://api-airwallex.com")
 
+    # Account & Organization IDs
+    ACCOUNT_ID = os.getenv("AIRWALLEX_ACCOUNT_ID", "acct_iViBmbvbOzuOUVZexPSWuA")
+    ORGANIZATION_ID = os.getenv("AIRWALLEX_ORGANIZATION_ID", "org_3-rgzD0qRdqtriN1dz2WJQ")
+    DEFAULT_CUSTOMER_ID = os.getenv("AIRWALLEX_CUSTOMER_ID", "IX_3QtmsQn2k8lKOEZGDWw")
+
+    # Entity Information
+    ENTITY_NAME = "广州兰卡企业管理顾问有限公司"
+    BUSINESS_TYPE = "国际"  # 国内/国际
+
     # Payment Configuration
     CURRENCY = "CNY"
     COUNTRY = "CN"
@@ -99,7 +108,8 @@ class AirwallexService:
         billing_cycle: str,
         description: str,
         return_url: Optional[str] = None,
-        customer_email: Optional[str] = None
+        customer_email: Optional[str] = None,
+        airwallex_customer_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Create a payment intent with Airwallex
@@ -112,6 +122,7 @@ class AirwallexService:
             description: Payment description
             return_url: URL to redirect after payment
             customer_email: Customer email (optional)
+            airwallex_customer_id: Existing Airwallex customer ID (e.g., IX_3QtmsQn2k8lKOEZGDWw)
 
         Returns:
             Payment intent response with client_token
@@ -129,10 +140,9 @@ class AirwallexService:
             "merchant_order_id": request_id,
             "description": description,
             "return_url": return_url or "https://www.zenconsult.top/billing?success=true",
-            "cancel_url": "https://www.zenconsult.top/billing?canceled=true",
             "customer": {
-                "email": customer_email,
-                "merchant_customer_id": user_id
+                "merchant_customer_id": user_id,
+                "email": customer_email
             },
             "metadata": {
                 "user_id": user_id,
@@ -141,6 +151,11 @@ class AirwallexService:
             },
             "transaction_mode": "oneoff"
         }
+
+        # Add Airwallex customer ID if provided (for existing customers)
+        if airwallex_customer_id:
+            payload["customer"]["id"] = airwallex_customer_id
+            logger.info(f"Using existing Airwallex customer: {airwallex_customer_id}")
 
         try:
             result = await self._make_request(
@@ -153,6 +168,7 @@ class AirwallexService:
 
             return {
                 "payment_intent_id": result.get("id"),
+                "customer_id": result.get("customer_id"),
                 "client_token": result.get("next_action", {}).get("token", result.get("client_token")),
                 "amount": amount_cny,
                 "currency": AirwallexConfig.CURRENCY,
@@ -194,6 +210,39 @@ class AirwallexService:
 
         except Exception as e:
             logger.error(f"Failed to get payment status: {e}")
+            raise
+
+    async def get_customer(
+        self,
+        customer_id: str
+    ) -> Dict[str, Any]:
+        """
+        Get customer details from Airwallex
+
+        Args:
+            customer_id: Airwallex customer ID (e.g., IX_3QtmsQn2k8lKOEZGDWw)
+
+        Returns:
+            Customer details
+        """
+        try:
+            result = await self._make_request(
+                "GET",
+                f"/v1/pa/customers/{customer_id}"
+            )
+
+            return {
+                "id": result.get("id"),
+                "merchant_customer_id": result.get("merchant_customer_id"),
+                "email": result.get("email"),
+                "name": result.get("name"),
+                "phone_number": result.get("phone_number"),
+                "created_at": result.get("created_at"),
+                "deleted_at": result.get("deleted_at")
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get customer {customer_id}: {e}")
             raise
 
     async def create_customer(

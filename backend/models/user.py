@@ -32,3 +32,4 @@ class User(Base, TimestampMixin):
     region_preference = Column(String(50))
     currency_preference = Column(String(10), default="CNY")
     is_admin = Column(Boolean, default=False, nullable=False)
+    airwallex_customer_id = Column(String(255), index=True)  # Airwallex customer ID for payments

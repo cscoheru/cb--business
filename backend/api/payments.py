@@ -92,18 +92,26 @@ async def create_payment_order(
         # 使用 Airwallex 支付
         from models.user import User
 
-        # 创建 Airwallex 客户
-        try:
-            customer = await airwallex.create_customer(
-                user_id=str(current_user.id),
-                email=current_user.email,
-                name=getattr(current_user, 'name', current_user.email)
-            )
-        except Exception as e:
-            logger.error(f"Failed to create Airwallex customer: {e}")
-            # 即使客户创建失败，仍然可以创建支付意图
+        # 获取用户已有的 Airwallex Customer ID
+        airwallex_customer_id = getattr(current_user, 'airwallex_customer_id', None)
 
-        # 创建支付意图
+        # 如果没有，尝试创建
+        if not airwallex_customer_id:
+            try:
+                customer = await airwallex.create_customer(
+                    user_id=str(current_user.id),
+                    email=current_user.email,
+                    name=getattr(current_user, 'name', current_user.email)
+                )
+                airwallex_customer_id = customer.get("id")
+                # 保存到用户记录
+                current_user.airwallex_customer_id = airwallex_customer_id
+                await db.commit()
+            except Exception as e:
+                logger.error(f"Failed to create Airwallex customer: {e}")
+                # 即使客户创建失败，仍然可以创建支付意图
+
+        # 创建支付意图（使用已有的客户 ID）
         return_url = f"https://www.zenconsult.top/billing?success=true"
         description = f"{payment_data.plan_tier} 订阅 - {payment_data.billing_cycle}"
 
@@ -115,7 +123,8 @@ async def create_payment_order(
                 billing_cycle=payment_data.billing_cycle,
                 description=description,
                 return_url=return_url,
-                customer_email=current_user.email
+                customer_email=current_user.email,
+                airwallex_customer_id=airwallex_customer_id
             )
         except AirwallexError as e:
             logger.error(f"Airwallex error: {e}")
@@ -127,6 +136,7 @@ async def create_payment_order(
         order_result = {
             "order_no": intent_result["request_id"],
             "payment_intent_id": intent_result["payment_intent_id"],
+            "customer_id": intent_result.get("customer_id"),
             "client_token": intent_result["client_token"]
         }
         external_order_id = intent_result["payment_intent_id"]
@@ -460,6 +470,45 @@ async def mock_payment_complete(
     await db.commit()
 
     return {"success": True, "message": "支付完成"}
+
+
+@router.get("/airwallex/customer")
+async def get_airwallex_customer(
+    customer_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """获取 Airwallex 客户详情"""
+    try:
+        customer = await airwallex.get_customer(customer_id)
+        return {
+            "success": True,
+            "data": customer
+        }
+    except Exception as e:
+        logger.error(f"Failed to get Airwallex customer: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "GET_CUSTOMER_FAILED", "message": str(e)}
+        )
+
+
+@router.post("/airwallex/customer/link")
+async def link_airwallex_customer(
+    customer_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """将 Airwallex Customer ID 关联到当前用户"""
+    current_user.airwallex_customer_id = customer_id
+    await db.commit()
+
+    logger.info(f"Linked Airwallex customer {customer_id} to user {current_user.id}")
+
+    return {
+        "success": True,
+        "message": "Customer ID linked successfully",
+        "customer_id": customer_id
+    }
 
 
 @router.post("/webhooks/airwallex")

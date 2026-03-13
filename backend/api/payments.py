@@ -241,6 +241,70 @@ async def create_payment_order(
     return response_data
 
 
+# ============================================================================
+# 公开端点（必须在参数化路由之前定义）
+# ============================================================================
+
+@router.get("/plans")
+async def get_plans():
+    """
+    获取所有订阅计划信息
+
+    Returns:
+        包含 free, trial, pro 三种计划的详情
+    """
+    from config.subscriptions import get_all_plans_for_display
+
+    plans = get_all_plans_for_display()
+
+    return {
+        "success": True,
+        "plans": plans
+    }
+
+
+@router.get("/config")
+async def get_payment_config(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    获取支付配置信息（用于前端显示）
+
+    Returns:
+        用户当前订阅状态和可用计划
+    """
+    from config.subscriptions import get_all_plans_for_display, get_upgrade_target
+
+    # 计算试用剩余天数
+    trial_days_remaining = None
+    if current_user.trial_ends_at:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        if current_user.trial_ends_at > now:
+            trial_days_remaining = (current_user.trial_ends_at - now).days
+        else:
+            trial_days_remaining = 0
+
+    # 获取建议升级目标
+    upgrade_target = get_upgrade_target(current_user.plan_tier)
+
+    return {
+        "success": True,
+        "current_plan": {
+            "tier": current_user.plan_tier,
+            "status": current_user.plan_status,
+            "trial_ends_at": current_user.trial_ends_at.isoformat() if current_user.trial_ends_at else None,
+            "trial_days_remaining": trial_days_remaining,
+        },
+        "upgrade_target": upgrade_target,
+        "plans": get_all_plans_for_display()
+    }
+
+
+# ============================================================================
+# 参数化路由（必须放在最后）
+# ============================================================================
+
 @router.get("/{order_no}", response_model=PaymentQueryResponse)
 async def query_payment(
     order_no: str,
@@ -780,59 +844,3 @@ async def _process_airwallex_payment_failed(payload: dict, db: AsyncSession):
     if payment:
         payment.payment_status = PaymentStatus.FAILED.value
         await db.commit()
-
-
-@router.get("/plans")
-async def get_plans():
-    """
-    获取所有订阅计划信息
-
-    Returns:
-        包含 free, trial, pro 三种计划的详情
-    """
-    from config.subscriptions import get_all_plans_for_display
-
-    plans = get_all_plans_for_display()
-
-    return {
-        "success": True,
-        "plans": plans
-    }
-
-
-@router.get("/config")
-async def get_payment_config(
-    current_user: User = Depends(get_current_user),
-):
-    """
-    获取支付配置信息（用于前端显示）
-
-    Returns:
-        用户当前订阅状态和可用计划
-    """
-    from config.subscriptions import get_all_plans_for_display, get_upgrade_target
-
-    # 计算试用剩余天数
-    trial_days_remaining = None
-    if current_user.trial_ends_at:
-        from datetime import datetime, timezone
-        now = datetime.now(timezone.utc)
-        if current_user.trial_ends_at > now:
-            trial_days_remaining = (current_user.trial_ends_at - now).days
-        else:
-            trial_days_remaining = 0
-
-    # 获取建议升级目标
-    upgrade_target = get_upgrade_target(current_user.plan_tier)
-
-    return {
-        "success": True,
-        "current_plan": {
-            "tier": current_user.plan_tier,
-            "status": current_user.plan_status,
-            "trial_ends_at": current_user.trial_ends_at.isoformat() if current_user.trial_ends_at else None,
-            "trial_days_remaining": trial_days_remaining,
-        },
-        "upgrade_target": upgrade_target,
-        "plans": get_all_plans_for_display()
-    }

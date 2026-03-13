@@ -49,9 +49,10 @@ class OxylabsConfig:
 
     @property
     def proxy(self) -> Optional[str]:
-        """返回代理URL (根据代理类型)"""
+        """返回代理URL (根据代理类型，包含认证信息)"""
         if self.use_dc_proxy:
-            return f"http://{self.dc_proxy_url}"
+            # 数据中心代理: 需要在URL中嵌入认证信息
+            return f"http://{self.dc_username}:{self.dc_password}@{self.dc_proxy_url}"
         return self.proxy_url
 
 
@@ -70,13 +71,15 @@ class OxylabsClient:
                 "https://": proxy_url,
             }
             proxy_type = "数据中心代理" if self.config.use_dc_proxy else "Web Unblocker"
-            logger.info(f"🌐 使用Oxylabs{proxy_type}: {proxy_url}")
+            # 隐藏密码显示
+            safe_url = proxy_url[:proxy_url.rfind(':')] + ':***@' + proxy_url[proxy_url.rfind('@')+1:]
+            logger.info(f"🌐 使用Oxylabs{proxy_type}: {safe_url}")
 
         self.client = httpx.AsyncClient(
-            auth=self.config.auth,
+            auth=self.config.auth,  # API认证
             timeout=60.0,
             headers={"Content-Type": "application/json"},
-            proxies=proxies
+            proxies=proxies  # 代理认证(已在URL中)
         )
 
     async def close(self):

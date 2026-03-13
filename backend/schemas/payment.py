@@ -9,6 +9,7 @@ class PaymentMethod(str, Enum):
     """支付方式"""
     WECHAT = "wechat"
     ALIPAY = "alipay"
+    AIRWALLEX = "airwallex"
 
 
 class PaymentStatus(str, Enum):
@@ -60,6 +61,8 @@ class PaymentOrderResponse(BaseModel):
     payment_method: str
     code_url: Optional[str] = None  # 微信支付二维码链接
     qrcode_url: Optional[str] = None  # 二维码图片URL
+    client_token: Optional[str] = None  # Airwallex 前端 checkout token
+    payment_intent_id: Optional[str] = None  # Airwallex 支付意图 ID
     expires_at: Optional[datetime] = None
 
 

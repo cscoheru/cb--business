@@ -23,11 +23,13 @@ from config.subscriptions import get_plan_pricing
 from config.database import get_db
 from api.dependencies import get_current_user
 from services.wechat_pay import WeChatPayService
+from services.airwallex_service import get_airwallex_service, AirwallexError
 
 router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
 
-# 初始化微信支付服务
+# 初始化支付服务
 wechat_pay = WeChatPayService()
+airwallex = get_airwallex_service()
 
 
 @router.post("/create", response_model=PaymentOrderResponse)
@@ -82,6 +84,55 @@ async def create_payment_order(
             billing_cycle=payment_data.billing_cycle,
             amount=float(amount),
         )
+        external_order_id = order_result.get("prepay_id")
+        code_url = order_result.get("code_url")
+        qrcode_url = f"/api/v1/payments/qrcode/{order_result['order_no']}"
+
+    elif payment_data.payment_method == PaymentMethod.AIRWALLEX:
+        # 使用 Airwallex 支付
+        from models.user import User
+
+        # 创建 Airwallex 客户
+        try:
+            customer = await airwallex.create_customer(
+                user_id=str(current_user.id),
+                email=current_user.email,
+                name=getattr(current_user, 'name', current_user.email)
+            )
+        except Exception as e:
+            logger.error(f"Failed to create Airwallex customer: {e}")
+            # 即使客户创建失败，仍然可以创建支付意图
+
+        # 创建支付意图
+        return_url = f"https://www.zenconsult.top/billing?success=true"
+        description = f"{payment_data.plan_tier} 订阅 - {payment_data.billing_cycle}"
+
+        try:
+            intent_result = await airwallex.create_payment_intent(
+                amount_cny=int(amount),
+                user_id=str(current_user.id),
+                plan_tier=payment_data.plan_tier,
+                billing_cycle=payment_data.billing_cycle,
+                description=description,
+                return_url=return_url,
+                customer_email=current_user.email
+            )
+        except AirwallexError as e:
+            logger.error(f"Airwallex error: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={"code": e.code, "message": e.message, "details": e.details}
+            )
+
+        order_result = {
+            "order_no": intent_result["request_id"],
+            "payment_intent_id": intent_result["payment_intent_id"],
+            "client_token": intent_result["client_token"]
+        }
+        external_order_id = intent_result["payment_intent_id"]
+        code_url = None  # Airwallex uses embedded checkout, not QR code
+        qrcode_url = None
+
     else:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
@@ -98,7 +149,7 @@ async def create_payment_order(
         payment_method=payment_data.payment_method.value,
         payment_status=PaymentStatus.PENDING.value,
         transaction_id=order_result["order_no"],
-        external_order_id=order_result.get("prepay_id"),
+        external_order_id=external_order_id,
         extra_data=f'{{"plan_tier":"{payment_data.plan_tier}","billing_cycle":"{payment_data.billing_cycle}"}}',
     )
 
@@ -106,18 +157,52 @@ async def create_payment_order(
     await db.commit()
     await db.refresh(payment)
 
-    # 生成二维码URL
-    qrcode_url = f"/api/v1/payments/qrcode/{order_result['order_no']}"
-
-    return PaymentOrderResponse(
+    # 生成响应数据
+    response_data = PaymentOrderResponse(
         order_no=order_result["order_no"],
         amount=float(amount),
         currency="CNY",
         payment_method=payment_data.payment_method.value,
-        code_url=order_result.get("code_url"),
+        code_url=code_url,
         qrcode_url=qrcode_url,
+        client_token=order_result.get("client_token") if payment_data.payment_method == PaymentMethod.AIRWALLEX else None,
+        payment_intent_id=order_result.get("payment_intent_id") if payment_data.payment_method == PaymentMethod.AIRWALLEX else None,
         expires_at=datetime.utcnow() + timedelta(hours=2),  # 订单2小时过期
     )
+
+    # Airwallex 额外处理：保存 intent 记录和 client_token
+    if payment_data.payment_method == PaymentMethod.AIRWALLEX:
+        from models.airwallex import AirwallexPaymentIntent
+        import json
+
+        # 创建 AirwallexPaymentIntent 记录
+        aw_intent = AirwallexPaymentIntent(
+            payment_id=payment.id,
+            user_id=current_user.id,
+            airwallex_intent_id=intent_result["payment_intent_id"],
+            merchant_order_id=intent_result["request_id"],
+            amount_minor=int(amount) * 100,  # 转换为 fen
+            currency="CNY",
+            status="requires_payment_method",
+            client_token=intent_result["client_token"],
+            description=description,
+            return_url=return_url,
+            metadata={
+                "plan_tier": payment_data.plan_tier,
+                "billing_cycle": payment_data.billing_cycle
+            }
+        )
+        db.add(aw_intent)
+
+        # 保存 client_token 到 extra_data（前端兼容）
+        extra = json.loads(payment.extra_data or "{}")
+        extra["client_token"] = intent_result.get("client_token")
+        extra["payment_intent_id"] = intent_result.get("payment_intent_id")
+        payment.extra_data = json.dumps(extra)
+
+        await db.commit()
+
+    return response_data
 
 
 @router.get("/{order_no}", response_model=PaymentQueryResponse)
@@ -375,3 +460,248 @@ async def mock_payment_complete(
     await db.commit()
 
     return {"success": True, "message": "支付完成"}
+
+
+@router.post("/webhooks/airwallex")
+async def airwallex_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    """Airwallex 支付回调"""
+    from config.redis import redis_client
+    from models.airwallex import AirwallexWebhookEvent
+    import json
+
+    # 获取签名头
+    signature = request.headers.get("x-webhook-signature", "")
+    timestamp = request.headers.get("x-webhook-timestamp", "")
+
+    # 读取原始 payload
+    raw_body = await request.body()
+    payload_str = raw_body.decode()
+
+    try:
+        payload = json.loads(payload_str)
+    except json.JSONDecodeError:
+        logger.warning("Invalid JSON in Airwallex webhook")
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    # 获取事件信息
+    event_id = payload.get("id")
+    event_type = payload.get("name")
+
+    if not event_id or not event_type:
+        logger.warning("Missing event id or type in webhook")
+        raise HTTPException(status_code=400, detail="Missing event data")
+
+    logger.info(f"Received Airwallex webhook: {event_type} - {event_id}")
+
+    # 验证签名
+    is_valid = await airwallex.verify_webhook_signature(
+        payload=payload_str,
+        signature=signature,
+        timestamp=timestamp
+    )
+
+    if not is_valid:
+        logger.warning(f"Invalid Airwallex webhook signature for event {event_id}")
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
+    # 防重放攻击（使用 Redis 和数据库）
+    cache_key = f"airwallex_webhook:{event_id}"
+
+    # 首先检查数据库是否已处理
+    existing_event = await db.execute(
+        select(AirwallexWebhookEvent).where(
+            AirwallexWebhookEvent.event_id == event_id
+        )
+    )
+    event_record = existing_event.scalar_one_or_none()
+
+    if event_record and event_record.status == "processed":
+        logger.info(f"Webhook event already processed: {event_id}")
+        return {"status": "ok", "message": "already processed"}
+
+    # 检查 Redis 缓存
+    existing = await redis_client.get(cache_key)
+    if existing:
+        logger.info(f"Webhook event in cache: {event_id}")
+        return {"status": "ok", "message": "already processed"}
+
+    # 创建 webhook 事件记录
+    webhook_event = AirwallexWebhookEvent(
+        event_id=event_id,
+        event_type=event_type,
+        status="pending",
+        payload=payload,
+        signature=signature,
+        timestamp=datetime.utcnow() if timestamp else None
+    )
+    db.add(webhook_event)
+    await db.flush()  # 获取 ID 但不提交
+
+    # 处理支付成功事件
+    try:
+        if event_type == "payment_intent.succeeded":
+            await _process_airwallex_payment_success(payload, db)
+        elif event_type == "payment_intent.failed":
+            await _process_airwallex_payment_failed(payload, db)
+        else:
+            logger.info(f"Unhandled Airwallex event type: {event_type}")
+
+        # 标记事件为已处理
+        webhook_event.status = "processed"
+        webhook_event.processed_at = datetime.utcnow()
+        await db.commit()
+
+        # 标记为已处理（1小时过期）
+        await redis_client.set(cache_key, "1", ex=3600)
+
+    except Exception as e:
+        logger.error(f"Error processing Airwallex webhook {event_id}: {e}")
+        webhook_event.status = "failed"
+        webhook_event.error_message = str(e)
+        await db.commit()
+        raise  # Re-raise to trigger retry
+
+    return {"status": "ok", "message": "processed"}
+
+
+async def _process_airwallex_payment_success(payload: dict, db: AsyncSession):
+    """处理 Airwallex 支付成功"""
+    from models.airwallex import AirwallexPaymentIntent
+
+    payment_intent_data = payload.get("data", {}).get("object", {})
+    airwallex_intent_id = payment_intent_data.get("id")
+    merchant_order_id = payment_intent_data.get("merchant_order_id")
+    amount_minor = payment_intent_data.get("amount")
+    currency = payment_intent_data.get("currency")
+    metadata = payment_intent_data.get("metadata", {})
+
+    # 查找或创建 AirwallexPaymentIntent 记录
+    existing_intent = await db.execute(
+        select(AirwallexPaymentIntent).where(
+            AirwallexPaymentIntent.merchant_order_id == merchant_order_id
+        )
+    )
+    intent_record = existing_intent.scalar_one_or_none()
+
+    if intent_record:
+        intent_record.status = "succeeded"
+        intent_record.updated_at = datetime.utcnow()
+
+    logger.info(f"Processing successful Airwallex payment: {airwallex_intent_id}")
+
+    # 查找支付记录（通过 merchant_order_id）
+    result = await db.execute(
+        select(Payment).where(Payment.transaction_id == merchant_order_id)
+    )
+    payment = result.scalar_one_or_none()
+
+    if not payment:
+        logger.warning(f"Payment not found for Airwallex intent: {merchant_order_id}")
+        return
+
+    # 避免重复处理
+    if payment.payment_status == PaymentStatus.COMPLETED.value:
+        logger.info(f"Payment already completed: {merchant_order_id}")
+        return
+
+    # 验证金额
+    expected_amount = int(payment.amount * 100)  # 转换为 fen
+    if int(amount_minor) != expected_amount:
+        logger.warning(
+            f"Airwallex amount mismatch: {amount_minor} != {expected_amount}"
+        )
+        payment.payment_status = PaymentStatus.FAILED.value
+        await db.commit()
+        return
+
+    # 更新支付状态
+    payment.payment_status = PaymentStatus.COMPLETED.value
+    payment.external_order_id = airwallex_intent_id
+    payment.completed_at = datetime.utcnow()
+
+    # 解析元数据
+    plan_tier = metadata.get("plan_tier", "pro")
+    billing_cycle = metadata.get("billing_cycle", "monthly")
+
+    # 计算订阅过期时间
+    if billing_cycle == "yearly":
+        expires_at = datetime.utcnow() + timedelta(days=365)
+    else:
+        expires_at = datetime.utcnow() + timedelta(days=30)
+
+    # 创建或更新订阅
+    existing_sub = await db.execute(
+        select(Subscription).where(
+            and_(
+                Subscription.user_id == payment.user_id,
+                Subscription.plan_tier == plan_tier,
+            )
+        )
+    )
+    subscription = existing_sub.scalar_one_or_none()
+
+    if subscription:
+        # 更新现有订阅
+        subscription.status = "active"
+        subscription.billing_cycle = billing_cycle
+        subscription.amount = float(payment.amount)
+        subscription.started_at = datetime.utcnow()
+        subscription.expires_at = expires_at
+        subscription.canceled_at = None
+        subscription.auto_renew = True
+        subscription.payment_method = "airwallex"
+    else:
+        # 创建新订阅
+        subscription = Subscription(
+            id=uuid.uuid4(),
+            user_id=payment.user_id,
+            plan_tier=plan_tier,
+            status="active",
+            billing_cycle=billing_cycle,
+            amount=float(payment.amount),
+            started_at=datetime.utcnow(),
+            expires_at=expires_at,
+            auto_renew=True,
+            payment_method="airwallex",
+        )
+        db.add(subscription)
+        await db.flush()
+
+    payment.subscription_id = str(subscription.id)
+    await db.commit()
+
+    logger.info(f"Airwallex payment processed successfully: {airwallex_intent_id}")
+
+
+async def _process_airwallex_payment_failed(payload: dict, db: AsyncSession):
+    """处理 Airwallex 支付失败"""
+    from models.airwallex import AirwallexPaymentIntent
+
+    payment_intent_data = payload.get("data", {}).get("object", {})
+    merchant_order_id = payment_intent_data.get("merchant_order_id")
+    airwallex_intent_id = payment_intent_data.get("id")
+    error_message = payment_intent_data.get("last_payment_error", {}).get("message", "Unknown error")
+
+    logger.warning(f"Processing failed Airwallex payment: {merchant_order_id} - {error_message}")
+
+    # 更新 AirwallexPaymentIntent 状态
+    existing_intent = await db.execute(
+        select(AirwallexPaymentIntent).where(
+            AirwallexPaymentIntent.merchant_order_id == merchant_order_id
+        )
+    )
+    intent_record = existing_intent.scalar_one_or_none()
+
+    if intent_record:
+        intent_record.status = "failed"
+        intent_record.updated_at = datetime.utcnow()
+
+    # 查找并更新支付记录
+    result = await db.execute(
+        select(Payment).where(Payment.transaction_id == merchant_order_id)
+    )
+    payment = result.scalar_one_or_none()
+
+    if payment:
+        payment.payment_status = PaymentStatus.FAILED.value
+        await db.commit()

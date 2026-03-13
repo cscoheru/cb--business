@@ -117,29 +117,34 @@ async def batch_create_articles(
 
         for article_data in request.articles:
             try:
-                # 检查是否已存在 (通过URL唯一性)
+                # Get the URL/link from article data (support both url and link fields)
+                article_url = article_data.get("url") or article_data.get("link")
+
+                # 检查是否已存在 (通过link唯一性)
                 existing = await db.execute(
-                    select(Article).where(Article.url == article_data.get("url"))
+                    select(Article).where(Article.link == article_url)
                 )
                 existing_article = existing.scalar_one_or_none()
 
                 if existing_article:
                     # 更新现有文章
                     for key, value in article_data.items():
+                        # Map 'url' to 'link' if needed
+                        if key == 'url':
+                            continue
                         if hasattr(existing_article, key):
                             setattr(existing_article, key, value)
                     existing_article.updated_at = datetime.now()
                     updated_count += 1
                 else:
-                    # 创建新文章
+                    # 创建新文章 - map fields correctly
                     new_article = Article(
                         title=article_data.get("title", ""),
                         summary=article_data.get("summary") or article_data.get("content", "")[:500],
                         full_content=article_data.get("content"),
-                        url=article_data.get("url"),
-                        source_name=article_data.get("source_name", "OpenClaw"),
+                        link=article_url,
+                        source=article_data.get("source_name") or article_data.get("source", "OpenClaw"),
                         language=article_data.get("language", "en"),
-                        link=article_data.get("url"),
                         published_at=article_data.get("published_at"),
                         created_at=datetime.now()
                     )
@@ -148,7 +153,7 @@ async def batch_create_articles(
 
             except Exception as e:
                 failed_count += 1
-                errors.append(f"Article {article_data.get('url', 'unknown')}: {str(e)}")
+                errors.append(f"Article {article_data.get('url', article_data.get('link', 'unknown'))}: {str(e)}")
                 logger.error(f"Failed to process article: {e}")
 
         # 提交所有更改

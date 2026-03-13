@@ -60,7 +60,7 @@ async def get_articles_sync(
         offset = (page - 1) * per_page
         query = f"""
             SELECT id, title, summary, link, source, language, content_theme,
-                   region, country, platform, published_at, created_at, opportunity_score
+                   region, country, platform, published_at, crawled_at, opportunity_score
             FROM articles
             WHERE {where_clause}
             ORDER BY published_at DESC
@@ -90,7 +90,7 @@ async def get_articles_sync(
                 "country": article["country"],
                 "platform": article["platform"],
                 "published_at": article["published_at"].isoformat() if article["published_at"] else None,
-                "created_at": article["created_at"].isoformat() if article["created_at"] else None,
+                "crawled_at": article["crawled_at"].isoformat() if article["crawled_at"] else None,
                 "opportunity_score": article["opportunity_score"]
             })
 

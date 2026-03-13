@@ -27,6 +27,7 @@ from sqlalchemy import select, func, and_, text
 from config.database import AsyncSessionLocal, engine
 from models.article import Article
 from models.card import Card
+from services.notification_service import send_monitoring_report
 
 # 配置日志
 logging.basicConfig(
@@ -412,6 +413,17 @@ async def main():
 
         # 保存到数据库
         await monitor.save_to_database(report)
+
+        # 发送通知 (仅在WARNING或CRITICAL状态时)
+        if report['health']['overall_status'] in ['warning', 'critical']:
+            logger.info("Sending notification due to warning/critical status...")
+            await send_monitoring_report(report)
+        elif report['health']['overall_status'] == 'healthy':
+            # 健康状态也发送通知（可以用于确认系统正常运行）
+            # 只在每天的第一次运行时发送（例如凌晨0点）
+            current_hour = datetime.now().hour
+            if current_hour == 0:
+                await send_monitoring_report(report)
 
         # 根据状态决定退出码
         if report['health']['overall_status'] == 'healthy':

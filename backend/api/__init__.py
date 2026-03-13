@@ -33,6 +33,7 @@ from api.cards import router as cards_router
 from api.favorites import router as favorites_router
 from api.batch_operations import router as batch_operations_router
 from api.openclaw_integration import router as openclaw_router
+from api.notifications import router as notifications_router
 
 
 # 创建FastAPI应用
@@ -148,6 +149,9 @@ app.include_router(favorites_router)
 # OpenClaw集成路由
 app.include_router(batch_operations_router)
 app.include_router(openclaw_router)
+
+# 通知路由
+app.include_router(notifications_router)
 
 # 可选的 crawler 路由（依赖可能未安装）
 try:

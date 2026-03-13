@@ -47,7 +47,7 @@ class OxylabsClient:
         if self.config.proxy_url:
             proxies = {
                 "http://": self.config.proxy_url,
-                "https:// self.config.proxy_url,
+                "https://": self.config.proxy_url,
             }
             logger.info(f"🌐 使用Oxylabs代理: {self.config.proxy_url}")
 

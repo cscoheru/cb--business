@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/v1/crawler-sync", tags=["crawler-sync"])
 
 # 数据库连接配置
 DB_CONFIG = {
-    "host": "postgres",
+    "host": "cb-business-postgres",  # Docker 服务名
     "port": 5432,
     "database": "cbdb",
     "user": "cbuser",

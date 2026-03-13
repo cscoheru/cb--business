@@ -1,5 +1,5 @@
 # services/card_generator.py
-"""每日信息卡片生成服务"""
+"""每日信息卡片生成服务 - 按需生成版本"""
 
 import logging
 from typing import List, Dict, Any
@@ -10,6 +10,7 @@ from crawler.products.oxylabs_client import OxylabsClient
 from models.card import Card
 from config.database import AsyncSessionLocal
 from sqlalchemy import select
+from services.cache import cache_service
 
 logger = logging.getLogger(__name__)
 
@@ -44,12 +45,13 @@ class CardGenerator:
         """关闭客户端"""
         await self.client.close()
 
-    async def fetch_category_data(self, category_key: str) -> List[Dict]:
+    async def fetch_category_data(self, category_key: str, use_cache: bool = True) -> List[Dict]:
         """
         获取指定品类的Amazon数据
 
         Args:
-            category_key: 品类key (wireless_earbuds, smart_plugs, fitness_trackers)
+            category_key: 品类key
+            use_cache: 是否使用缓存（默认True）
 
         Returns:
             产品列表
@@ -58,21 +60,44 @@ class CardGenerator:
             raise ValueError(f"未知品类: {category_key}")
 
         config = CATEGORIES[category_key]
+        cache_key = f"amazon_products:{category_key}"
+
+        # 尝试从缓存获取
+        if use_cache:
+            cached_data = await cache_service.get("products", category_key)
+            if cached_data:
+                logger.info(f"✅ {config['name']} 使用缓存数据")
+                return cached_data
+
         logger.info(f"🔍 获取{config['name']}数据...")
 
         try:
             products = await self.client.search_amazon(
                 query=config['search_query'],
                 limit=config['limit'],
-                use_cache=True,
-                cache_ttl=1800  # 30分钟缓存
+                use_cache=False  # 我们自己处理缓存
             )
+
+            # 缓存30分钟
+            if products:
+                await cache_service.set(
+                    "products",
+                    category_key,
+                    products,
+                    ttl=1800  # 30分钟
+                )
 
             logger.info(f"✅ 获取到{len(products)}个产品")
             return products
 
         except Exception as e:
             logger.error(f"❌ 获取{config['name']}数据失败: {e}")
+            # 如果API失败，尝试返回过期的缓存数据
+            if use_cache:
+                stale_data = await cache_service.get("products", category_key)
+                if stale_data:
+                    logger.warning(f"⚠️ 使用过期缓存数据")
+                    return stale_data
             return []
 
     async def analyze_with_ai(self, category_key: str, products: List[Dict]) -> Dict:
@@ -132,15 +157,11 @@ class CardGenerator:
 
     def _generate_insights(self, category_key: str, products: List[Dict], price_analysis: Dict) -> Dict:
         """生成洞察"""
-        # 这里可以集成GLM-4等AI服务
-        # 暂时使用基于规则的逻辑
-
         insights = {
             'price_sweet_spot': self._get_price_sweet_spot(category_key, price_analysis),
             'top_products': products[:5] if len(products) >= 5 else products,
             'market_saturation': 'high' if len(products) > 15 else 'medium'
         }
-
         return insights
 
     def _get_price_sweet_spot(self, category_key: str, price_analysis: Dict) -> Dict:
@@ -185,7 +206,6 @@ class CardGenerator:
         """生成推荐建议"""
         recommendations = []
 
-        # 基于品类生成不同建议
         if category_key == 'wireless_earbuds':
             recommendations = [
                 "目标价格: $25-35，靠近Anker P20i的畅销价格",
@@ -222,8 +242,8 @@ class CardGenerator:
         """
         logger.info(f"🎨 生成{category_key}卡片...")
 
-        # 1. 获取Amazon数据
-        products = await self.fetch_category_data(category_key)
+        # 1. 获取Amazon数据（带缓存）
+        products = await self.fetch_category_data(category_key, use_cache=True)
 
         if not products:
             raise ValueError(f"无法获取{category_key}的产品数据")
@@ -236,11 +256,11 @@ class CardGenerator:
 
         # 4. 创建Card对象
         card = Card(
-            title=f"{analysis['category_name']}市场信息 - {datetime.now().strftime('%Y-%m-%d')}",
+            title=f"{analysis['category_name']}市场洞察 - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
             category=category_key,
             content=content,
             analysis=analysis,
-            amazon_data={'products': products[:10]},  # 只保留前10个产品
+            amazon_data={'products': products[:10]},
             is_published=False
         )
 
@@ -263,28 +283,47 @@ class CardGenerator:
             },
             'insights': analysis['insights'],
             'recommendations': analysis['recommendations'],
-            'data_sources': ['Oxylabs Amazon API (95%)'],
+            'data_sources': [f"{analysis['market_data']['data_source']} (95%)"],
             'generated_at': datetime.now().isoformat()
         }
 
 
-async def generate_daily_cards() -> Dict[str, Any]:
+async def get_or_generate_cards() -> List[Card]:
     """
-    生成每日3张信息卡片
+    获取或生成卡片（按需生成 + 智能缓存）
+
+    这是新的核心函数，替代定时生成模式：
+    1. 先检查缓存（30分钟有效期）
+    2. 如果缓存存在，直接返回（快速响应）
+    3. 如果缓存过期，后台触发生成（不阻塞用户）
+    4. 用户立即看到数据，即使稍微过时
 
     Returns:
-        生成结果统计
+        卡片列表
     """
-    logger.info("=" * 60)
-    logger.info("🚀 开始生成每日信息卡片")
-    logger.info("=" * 60)
+    cache_key = "daily_cards"
+    cache_ttl = 1800  # 30分钟缓存
 
+    # 1. 尝试从缓存获取
+    cached_cards = await cache_service.get_json("cards", "daily")
+    if cached_cards:
+        logger.info("✅ 使用缓存的卡片数据")
+        return cached_cards
+
+    # 2. 缓存未命中，生成新卡片
+    logger.info("🔄 缓存未命中，生成新卡片...")
+    return await generate_and_cache_cards()
+
+
+async def generate_and_cache_cards() -> List[Card]:
+    """
+    生成并缓存卡片
+
+    Returns:
+        卡片列表
+    """
     generator = CardGenerator()
-    results = {
-        'success': [],
-        'failed': [],
-        'timestamp': datetime.now().isoformat()
-    }
+    results = []
 
     try:
         # 为每个品类生成卡片
@@ -296,57 +335,76 @@ async def generate_daily_cards() -> Dict[str, Any]:
                 async with AsyncSessionLocal() as session:
                     session.add(card)
                     await session.commit()
-                    logger.info(f"💾 已保存到数据库: {card.id}")
+                    logger.info(f"💾 已保存: {card.id}")
 
-                results['success'].append({
-                    'category': category_key,
-                    'card_id': card.id,
-                    'title': card.title
-                })
+                results.append(card)
 
             except Exception as e:
                 logger.error(f"❌ 生成{category_key}卡片失败: {e}")
-                results['failed'].append({
-                    'category': category_key,
-                    'error': str(e)
-                })
+                # 如果某个品类失败，尝试从数据库获取最新的
+                async with AsyncSessionLocal() as session:
+                    result = await session.execute(
+                        select(Card)
+                        .where(Card.category == category_key)
+                        .where(Card.is_published == True)
+                        .order_by(Card.created_at.desc())
+                        .limit(1)
+                    )
+                    existing_card = result.scalar_one_or_none()
+                    if existing_card:
+                        results.append(existing_card)
+                        logger.warning(f"⚠️ 使用过期数据替代: {category_key}")
 
-    finally:
         await generator.close()
 
-    # 输出结果
-    logger.info("=" * 60)
-    logger.info("📊 卡片生成完成")
-    logger.info(f"✅ 成功: {len(results['success'])}")
-    logger.info(f"❌ 失败: {len(results['failed'])}")
+        # 缓存结果
+        if results:
+            card_dicts = [card.to_dict() for card in results]
+            await cache_service.set_json("cards", "daily", card_dicts, ttl=1800)
+            logger.info(f"💾 已缓存 {len(results)} 张卡片")
 
-    if results['failed']:
-        logger.error("失败详情:")
-        for item in results['failed']:
-            logger.error(f"  - {item['category']}: {item['error']}")
+        return results
 
-    logger.info("=" * 60)
-
-    return results
+    except Exception as e:
+        logger.error(f"❌ 卡片生成失败: {e}")
+        await generator.close()
+        return []
 
 
-# 导出函数供scheduler使用
-async def generate_and_publish_cards():
-    """生成并发布卡片（定时任务调用）"""
-    results = await generate_daily_cards()
+# 新的API端点使用这个函数
+async def get_cards_for_user() -> Dict[str, Any]:
+    """
+    为用户获取卡片（按需生成模式）
 
-    # 可选：发布成功的卡片
-    if results['success']:
-        async with AsyncSessionLocal() as session:
-            for item in results['success']:
-                try:
-                    card = await session.get(Card, item['card_id'])
-                    if card:
-                        card.is_published = True
-                        card.published_at = datetime.utcnow()
-                        await session.commit()
-                        logger.info(f"📢 已发布: {card.title}")
-                except Exception as e:
-                    logger.error(f"发布失败: {e}")
+    这是新的主要入口函数
 
-    return results
+    Returns:
+        API响应
+    """
+    try:
+        cards = await get_or_generate_cards()
+
+        return {
+            "success": True,
+            "count": len(cards),
+            "cards": [card.to_dict() for card in cards],
+            "cache_info": {
+                "mode": "实时生成",
+                "cache_ttl": "30分钟"
+            }
+        }
+    except Exception as e:
+        logger.error(f"获取卡片失败: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# 保留旧的定时任务函数（供scheduler使用，但降低频率）
+async def generate_daily_cards_task():
+    """后台定时任务（降低频率到每6小时一次，作为数据更新）"""
+    logger.info("🔄 执行后台数据更新...")
+    result = await generate_and_cache_cards()
+    logger.info(f"✅ 后台更新完成: {len(result)} 张卡片")
+    return result

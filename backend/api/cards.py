@@ -17,50 +17,66 @@ router = APIRouter(prefix="/api/v1/cards", tags=["cards"])
 
 @router.get("/daily")
 async def get_daily_cards(
-    date: Optional[str] = Query(None, description="日期 (YYYY-MM-DD), 默认今天"),
+    date: Optional[str] = Query(None, description="日期 (YYYY-MM-DD), 默认今天（按需生成）"),
     db: AsyncSessionLocal = Depends(get_db)
 ):
     """
-    获取每日3张信息卡片
+    获取每日3张信息卡片（按需生成模式）
+
+    新模式：用户每次访问都会看到最新的数据
+    - 30分钟内：返回缓存的卡片（快速）
+    - 30分钟后：自动重新生成新卡片
+    - Oxylabs API失败时：返回最新的可用卡片
 
     Args:
-        date: 日期，不传则返回今天
+        date: 日期，不传则按需生成最新
 
     Returns:
-        今日的3张卡片
+        最新的3张卡片
     """
     try:
-        # 如果没有指定日期，使用今天
-        if not date:
-            date = datetime.now().strftime("%Y-%m-%d")
+        # 如果指定了历史日期，从数据库查询
+        if date:
+            try:
+                target_date = datetime.strptime(date, "%Y-%m-%d")
+                start_of_day = target_date.replace(hour=0, minute=0, second=0)
+                end_of_day = target_date.replace(hour=23, minute=59, second=59)
 
-        # 解析日期
-        try:
-            target_date = datetime.strptime(date, "%Y-%m-%d")
-        except ValueError:
-            raise HTTPException(status_code=400, detail="无效的日期格式，请使用 YYYY-MM-DD")
+                result = await db.execute(
+                    select(Card)
+                    .where(Card.created_at >= start_of_day)
+                    .where(Card.created_at <= end_of_day)
+                    .where(Card.is_published == True)
+                    .order_by(Card.created_at)
+                )
+                cards = result.scalars().all()
 
-        # 查询指定日期的卡片
-        start_of_day = target_date.replace(hour=0, minute=0, second=0)
-        end_of_day = target_date.replace(hour=23, minute=59, second=59)
+                return {
+                    "success": True,
+                    "date": date,
+                    "count": len(cards),
+                    "cards": [card.to_dict() for card in cards],
+                    "mode": "历史数据"
+                }
 
-        result = await db.execute(
-            select(Card)
-            .where(Card.created_at >= start_of_day)
-            .where(Card.created_at <= end_of_day)
-            .where(Card.is_published == True)
-            .order_by(Card.created_at)
-        )
+            except ValueError:
+                raise HTTPException(status_code=400, detail="无效的日期格式，请使用 YYYY-MM-DD")
 
-        cards = result.scalars().all()
+        # 按需生成模式：获取最新卡片
+        from services.card_generator import get_cards_for_user
+
+        result = await get_cards_for_user()
 
         return {
             "success": True,
-            "date": date,
-            "count": len(cards),
-            "cards": [card.to_dict() for card in cards]
+            "count": result["count"],
+            "cards": result["cards"],
+            "mode": "实时生成",
+            "cache_info": result.get("cache_info", {})
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取每日卡片失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -96,21 +96,22 @@ async def start_scheduler():
         logger.info("  ✓ 已注册: 清理过期文章 (每天凌晨3点)")
 
         # ============================================
-        # Phase 1: 每日信息卡片生成任务
+        # Phase 1: 每日信息卡片生成任务（按需生成模式）
         # ============================================
         try:
             from scheduler.tasks import generate_daily_cards_task
 
-            # 每天早上8点生成信息卡片
+            # 降低定时任务频率：每6小时更新一次（作为后台数据刷新）
+            # 主要依靠用户按需生成，定时任务仅作数据更新
             scheduler.add_job(
                 generate_daily_cards_task,
-                trigger=CronTrigger(hour=8, minute=0),
+                trigger=CronTrigger(hour='*/6', minute=0),  # 每6小时: 0点, 6点, 12点, 18点
                 id='generate_daily_cards',
-                name='生成每日信息卡片',
+                name='后台数据更新（每6小时）',
                 replace_existing=True,
-                misfire_grace_time=7200,  # 错过2小时内的任务
+                misfire_grace_time=7200,
             )
-            logger.info("  ✓ 已注册: 生成每日信息卡片 (每天早上8点)")
+            logger.info("  ✓ 已注册: 后台数据更新 (每6小时)")
         except ImportError as e:
             logger.warning(f"卡片生成任务不可用: {e}")
 

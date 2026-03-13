@@ -130,6 +130,14 @@ class CacheService:
         except Exception as e:
             logger.warning(f"批量删除缓存失败: {e}")
 
+    async def get_json(self, prefix: str, identifier: str) -> Optional[Any]:
+        """获取JSON缓存（简化接口）"""
+        return await self.get(prefix, identifier)
+
+    async def set_json(self, prefix: str, identifier: str, value: Any, ttl: int = 3600):
+        """设置JSON缓存（简化接口）"""
+        await self.set(prefix, identifier, value, ttl)
+
 
 # 全局缓存服务实例
 cache_service = CacheService()

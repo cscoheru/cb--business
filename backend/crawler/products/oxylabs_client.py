@@ -61,24 +61,19 @@ class OxylabsClient:
     def __init__(self, config: Optional[OxylabsConfig] = None):
         self.config = config or OxylabsConfig()
 
-        # 配置代理
-        proxies = None
-        proxy_url = self.config.proxy
-        if proxy_url:
-            proxies = {
-                "http://": proxy_url,
-                "https://": proxy_url,
-            }
+        # httpx 0.28+ proxy parameter takes a URL string, not a dict
+        proxy = self.config.proxy  # Can be None or URL string
+        if proxy:
             proxy_type = "数据中心代理" if self.config.use_dc_proxy else "Web Unblocker"
-            # 隐藏密码显示
-            safe_url = proxy_url[:proxy_url.rfind(':')] + ':***@' + proxy_url[proxy_url.rfind('@')+1:]
+            # Hide password in logs
+            safe_url = proxy[:proxy.rfind(':')] + ':***@' + proxy[proxy.rfind('@')+1:]
             logger.info(f"🌐 使用Oxylabs{proxy_type}: {safe_url}")
 
         self.client = httpx.AsyncClient(
-            auth=self.config.auth,  # API认证
+            auth=self.config.auth,
             timeout=60.0,
             headers={"Content-Type": "application/json"},
-            proxies=proxies  # 代理认证(已在URL中)
+            proxy=proxy  # Pass URL string directly (not a dict)
         )
 
     async def close(self):
@@ -231,9 +226,19 @@ class OxylabsClient:
                 # content 结构: {results: {organic: [...], amazons_choices: [...]}}
                 results_dict = content.get("results", {})
                 if isinstance(results_dict, dict):
-                    return results_dict.get("organic", [])
-                return content.get("organic", [])
+                    products = results_dict.get("organic", [])
+                else:
+                    products = content.get("organic", [])
+                # Add URL field to each product for card generation
+                for p in products:
+                    if isinstance(p, dict) and p.get("asin"):
+                        p["url"] = f"https://www.amazon.com/dp/{p['asin']}"
+                return products
             elif isinstance(content, list):
+                # Add URL field to each product
+                for p in content:
+                    if isinstance(p, dict) and p.get("asin"):
+                        p["url"] = f"https://www.amazon.com/dp/{p['asin']}"
                 return content
         return []
 
@@ -284,9 +289,12 @@ class OxylabsClient:
 
         try:
             data = await self._request(payload)
+            logger.debug(f"Oxylabs response for {category}: {str(data)[:500]}")
 
             if data.get("results"):
                 content = data["results"][0].get("content", {})
+                logger.debug(f"Content type: {type(content)}, structure: {list(content.keys()) if isinstance(content, dict) else 'list'}")
+
                 if isinstance(content, dict):
                     # content 结构: {results: {organic: [...], amazons_choices: [...]}}
                     results_dict = content.get("results", {})
@@ -298,7 +306,6 @@ class OxylabsClient:
                         results_list = organic[:limit]
                         if len(results_list) < limit:
                             results_list.extend(choices[:limit - len(results_list)])
-                        return results_list
                     else:
                         # 兼容旧格式
                         organic = content.get("organic", [])
@@ -306,11 +313,22 @@ class OxylabsClient:
                         results_list = organic[:limit]
                         if len(results_list) < limit:
                             results_list.extend(choices[:limit - len(results_list)])
-                        return results_list
+
+                    # Add URL field to each product
+                    for p in results_list:
+                        if isinstance(p, dict) and p.get("asin"):
+                            p["url"] = f"https://www.amazon.com/dp/{p['asin']}"
+                    return results_list
                 elif isinstance(content, list):
+                    # Add URL field to each product
+                    for p in content:
+                        if isinstance(p, dict) and p.get("asin"):
+                            p["url"] = f"https://www.amazon.com/dp/{p['asin']}"
                     return content[:limit]
         except Exception as e:
             logger.warning(f"Best Sellers fallback to search failed: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
 
         return []
 

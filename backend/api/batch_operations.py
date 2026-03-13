@@ -358,7 +358,13 @@ async def batch_update_classifications(
                         item.content_theme = update_data.get("content_theme")
                         item.region = update_data.get("region")
                         item.platform = update_data.get("platform")
-                        item.tags = update_data.get("keywords", [])
+                        # Convert keywords list to JSON string for tags field
+                        keywords = update_data.get("keywords", [])
+                        if isinstance(keywords, list):
+                            import json
+                            item.tags = json.dumps(keywords)
+                        else:
+                            item.tags = keywords
                         item.opportunity_score = update_data.get("opportunity_score", 0.5)
                         item.risk_level = update_data.get("risk_level")
                         item.is_processed = True

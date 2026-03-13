@@ -17,7 +17,7 @@ DB_CONFIG = {
     "port": 5432,
     "database": "cbdb",
     "user": "cbuser",
-    "password": os.getenv("POSTGRES_PASSWORD", "k8VmK8PvqAFlEdirpJVJNo8DPe2bVlYPtV6xea+DlQ=")
+    "password": os.getenv("POSTGRES_PASSWORD", "k8VmK8PvqAFlEdirpJVJNo8DPe2bVlYPtV6xea+DlQQ=")
 }
 
 

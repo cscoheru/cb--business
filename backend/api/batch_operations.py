@@ -132,9 +132,10 @@ async def batch_create_articles(
                         # Map 'url' to 'link' if needed
                         if key == 'url':
                             continue
+                        if key == 'source_name':
+                            key = 'source'
                         if hasattr(existing_article, key):
                             setattr(existing_article, key, value)
-                    existing_article.updated_at = datetime.now()
                     updated_count += 1
                 else:
                     # 创建新文章 - map fields correctly
@@ -145,8 +146,7 @@ async def batch_create_articles(
                         link=article_url,
                         source=article_data.get("source_name") or article_data.get("source", "OpenClaw"),
                         language=article_data.get("language", "en"),
-                        published_at=article_data.get("published_at"),
-                        created_at=datetime.now()
+                        published_at=article_data.get("published_at")
                     )
                     db.add(new_article)
                     created_count += 1

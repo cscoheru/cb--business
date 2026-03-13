@@ -33,7 +33,7 @@ class AirwallexConfig:
     COUNTRY = "CN"
 
     # Webhook Configuration
-    WEBHOOK_SECRET = os.getenv("AIRWALLEX_WEBHOOK_SECRET", "")
+    WEBHOOK_SECRET = os.getenv("AIRWALLEX_WEBHOOK_SECRET", "whsec_53Xksbabmivyqn6sGAL5ItVUU0s--o67")
     WEBHOOK_URL = os.getenv("AIRWALLEX_WEBHOOK_URL", "https://api.zenconsult.top/api/v1/payments/webhooks/airwallex")
 
 

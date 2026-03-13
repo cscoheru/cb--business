@@ -308,8 +308,13 @@ class CardGenerator:
         # 1. 获取Amazon数据（带缓存）
         products = await self.fetch_category_data(category_key, use_cache=True)
 
+        # 如果获取失败，使用fallback数据
         if not products:
-            raise ValueError(f"无法获取{category_key}的产品数据")
+            logger.warning(f"⚠️ 无法获取{category_key}的产品数据，使用fallback")
+            products = self._get_fallback_products(category_key)
+
+        if not products:
+            raise ValueError(f"无法获取{category_key}的产品数据（包括fallback）")
 
         # 2. AI分析
         analysis = await self.analyze_with_ai(category_key, products)

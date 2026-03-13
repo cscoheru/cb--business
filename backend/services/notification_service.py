@@ -315,8 +315,8 @@ APScheduler: {report.get('apscheduler', {}).get('articles_last_hour', 0)} 篇/�
 OpenClaw: {report.get('openclaw', {}).get('articles_last_hour', 0)} 篇/小时
 
 【对比分析】
-一致性评分: {report.get('comparison', {}).get('consistency_score', 0):.1%}
-数量差异: {report.get('comparison', {}).get('count_diff', 0):+.0} ({report.get('comparison', {}).get('count_diff_pct', 0):+.1f}%)
+一致性评分: {report.get('comparison', {}).get('consistency_score', 0):.0%}
+数量差异: {report.get('comparison', {}).get('count_diff', 0):+d} ({report.get('comparison', {}).get('count_diff_pct', 0):+.1f}%)
 
 【数据质量】
 最新文章: {report.get('data_quality', {}).get('article_age_minutes', 0)} 分钟前

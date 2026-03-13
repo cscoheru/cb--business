@@ -7,14 +7,15 @@ import enum
 
 class PlanTier(str, enum.Enum):
     FREE = "free"
+    TRIAL = "trial"
     PRO = "pro"
-    ENTERPRISE = "enterprise"
 
 
 class PlanStatus(str, enum.Enum):
     ACTIVE = "active"
     CANCELED = "canceled"
     EXPIRED = "expired"
+    TRIAL_ENDED = "trial_ended"
 
 
 class User(Base, TimestampMixin):
@@ -26,8 +27,9 @@ class User(Base, TimestampMixin):
     name = Column(String(100))
     phone = Column(String(20))
     avatar_url = Column(String)
-    plan_tier = Column(String(20), default=PlanTier.FREE.value, nullable=False)
+    plan_tier = Column(String(20), default=PlanTier.TRIAL.value, nullable=False)  # 新用户默认试用
     plan_status = Column(String(20), default=PlanStatus.ACTIVE.value, nullable=False)
+    trial_ends_at = Column(DateTime(timezone=True))  # 试用结束时间
     last_login_at = Column(DateTime(timezone=True))
     region_preference = Column(String(50))
     currency_preference = Column(String(10), default="CNY")

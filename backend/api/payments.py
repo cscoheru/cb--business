@@ -38,42 +38,68 @@ async def create_payment_order(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """创建支付订单"""
-    # 检查是否已有活跃订阅
-    if payment_data.plan_tier != "free":
-        existing = await db.execute(
-            select(Subscription).where(
-                and_(
-                    Subscription.user_id == current_user.id,
-                    Subscription.status == "active",
-                    Subscription.plan_tier == payment_data.plan_tier,
-                )
+    """
+    创建支付订单
+
+    支付规则:
+    - TRIAL (试用版): 新用户自动获得14天，无需支付
+    - FREE (免费版): 永久免费基础功能
+    - PRO (专业版): 需要支付，99元/月 或 990元/年
+    """
+    # 验证目标计划
+    if payment_data.plan_tier == "trial":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "TRIAL_AUTO_GRANTED",
+                "message": "试用版在注册时自动获得，无需支付"
+            }
+        )
+
+    if payment_data.plan_tier == "free":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "FREE_PLAN_AVAILABLE",
+                "message": "免费版无需支付，直接使用即可"
+            }
+        )
+
+    # 只允许升级到 Pro
+    if payment_data.plan_tier != "pro":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVALID_PLAN", "message": "无效的订阅计划"}
+        )
+
+    # 检查是否已有 Pro 订阅
+    existing = await db.execute(
+        select(Subscription).where(
+            and_(
+                Subscription.user_id == current_user.id,
+                Subscription.status == "active",
+                Subscription.plan_tier == "pro",
             )
         )
-        existing_sub = existing.scalar_one_or_none()
+    )
+    existing_sub = existing.scalar_one_or_none()
 
-        if existing_sub:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "code": "ACTIVE_SUBSCRIPTION_EXISTS",
-                    "message": f"您已有活跃的{payment_data.plan_tier}订阅"
-                }
-            )
+    if existing_sub:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "ACTIVE_PRO_SUBSCRIPTION",
+                "message": "您已有活跃的专业版订阅"
+            }
+        )
 
     # 获取定价
     amount = get_plan_pricing(payment_data.plan_tier, payment_data.billing_cycle)
 
-    if amount is None:
+    if amount is None or amount == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "CUSTOM_PLAN", "message": "企业版需联系销售，请发送邮件至 sales@zenconsult.top"}
-        )
-
-    if amount == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "FREE_PLAN", "message": "免费版无需支付"}
+            detail={"code": "PAYMENT_NOT_REQUIRED", "message": "该计划无需支付"}
         )
 
     # 创建支付订单
@@ -754,3 +780,59 @@ async def _process_airwallex_payment_failed(payload: dict, db: AsyncSession):
     if payment:
         payment.payment_status = PaymentStatus.FAILED.value
         await db.commit()
+
+
+@router.get("/plans")
+async def get_plans():
+    """
+    获取所有订阅计划信息
+
+    Returns:
+        包含 free, trial, pro 三种计划的详情
+    """
+    from config.subscriptions import get_all_plans_for_display
+
+    plans = get_all_plans_for_display()
+
+    return {
+        "success": True,
+        "plans": plans
+    }
+
+
+@router.get("/config")
+async def get_payment_config(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    获取支付配置信息（用于前端显示）
+
+    Returns:
+        用户当前订阅状态和可用计划
+    """
+    from config.subscriptions import get_all_plans_for_display, get_upgrade_target
+
+    # 计算试用剩余天数
+    trial_days_remaining = None
+    if current_user.trial_ends_at:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        if current_user.trial_ends_at > now:
+            trial_days_remaining = (current_user.trial_ends_at - now).days
+        else:
+            trial_days_remaining = 0
+
+    # 获取建议升级目标
+    upgrade_target = get_upgrade_target(current_user.plan_tier)
+
+    return {
+        "success": True,
+        "current_plan": {
+            "tier": current_user.plan_tier,
+            "status": current_user.plan_status,
+            "trial_ends_at": current_user.trial_ends_at.isoformat() if current_user.trial_ends_at else None,
+            "trial_days_remaining": trial_days_remaining,
+        },
+        "upgrade_target": upgrade_target,
+        "plans": get_all_plans_for_display()
+    }

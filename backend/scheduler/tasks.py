@@ -179,3 +179,45 @@ async def cleanup_old_articles():
         await db.commit()
 
         logger.info(f"🧹 清理了 {result.rowcount} 条过期未发布文章")
+
+
+# ============================================
+# Phase 1: 每日信息卡片生成任务
+# ============================================
+
+async def generate_daily_cards_task():
+    """每日信息卡片生成任务 (每天8点执行)"""
+    from services.card_generator import generate_and_publish_cards
+
+    logger.info("🎨 开始生成每日信息卡片...")
+
+    try:
+        result = await generate_and_publish_cards()
+
+        success_count = len(result.get('success', []))
+        failed_count = len(result.get('failed', []))
+
+        logger.info(f"✅ 卡片生成完成: {success_count}成功, {failed_count}失败")
+
+        if failed_count > 0:
+            logger.warning(f"⚠️ 有{failed_count}个品类生成失败")
+
+    except Exception as e:
+        logger.error(f"❌ 卡片生成任务失败: {e}")
+        raise
+
+
+async def test_card_generation():
+    """测试卡片生成 (手动调用)"""
+    from services.card_generator import CardGenerator
+
+    logger.info("🧪 测试卡片生成...")
+
+    generator = CardGenerator()
+
+    try:
+        # 测试单个品类
+        card = await generator.generate_card('wireless_earbuds')
+        logger.info(f"✅ 测试成功: {card.title}")
+    finally:
+        await generator.close()

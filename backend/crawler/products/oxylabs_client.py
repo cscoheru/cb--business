@@ -15,6 +15,11 @@ from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 import logging
 
+# 导入缓存服务
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
+from services.cache import get_cached_or_fetch
+
 logger = logging.getLogger(__name__)
 
 
@@ -73,15 +78,19 @@ class OxylabsClient:
         self,
         asin: str,
         domain: str = "com",
-        geo_location: str = "90210"
+        geo_location: str = "90210",
+        use_cache: bool = True,
+        cache_ttl: int = 3600
     ) -> Dict[str, Any]:
         """
-        获取 Amazon 产品详情
+        获取 Amazon 产品详情 (带缓存)
 
         Args:
             asin: Amazon ASIN (例如: B07FZ8S74R)
             domain: 域名 (com, co.uk, de, jp 等)
             geo_location: 地理位置代码
+            use_cache: 是否使用缓存，默认True
+            cache_ttl: 缓存时间(秒)，默认1小时
 
         Returns:
             产品数据字典，包含:
@@ -89,6 +98,28 @@ class OxylabsClient:
             - images, bullet_points, reviews
             - stock, sales_rank 等
         """
+        if not use_cache:
+            # 不使用缓存，直接调用API
+            return await self._fetch_amazon_product(asin, domain, geo_location)
+
+        # 使用缓存
+        async def fetch_func():
+            return await self._fetch_amazon_product(asin, domain, geo_location)
+
+        return await get_cached_or_fetch(
+            prefix="amazon_product",
+            identifier=f"{asin}_{domain}",
+            fetch_func=fetch_func,
+            ttl=cache_ttl
+        )
+
+    async def _fetch_amazon_product(
+        self,
+        asin: str,
+        domain: str = "com",
+        geo_location: str = "90210"
+    ) -> Dict[str, Any]:
+        """内部方法：实际调用Oxylabs API获取产品"""
         payload = {
             "source": "amazon_product",
             "query": asin,
@@ -108,20 +139,45 @@ class OxylabsClient:
         query: str,
         domain: str = "com",
         category: Optional[str] = "aps",
-        limit: int = 10
+        limit: int = 10,
+        use_cache: bool = True,
+        cache_ttl: int = 1800  # 搜索结果缓存30分钟
     ) -> List[Dict[str, Any]]:
         """
-        搜索 Amazon 产品
+        搜索 Amazon 产品 (带缓存)
 
         Args:
             query: 搜索关键词
             domain: 域名
             category: 分类 ID (aps=全部, electronics=电子产品)
             limit: 返回数量
+            use_cache: 是否使用缓存，默认True
+            cache_ttl: 缓存时间(秒)，默认30分钟
 
         Returns:
             产品列表
         """
+        if not use_cache:
+            return await self._fetch_search_amazon(query, domain, category, limit)
+
+        async def fetch_func():
+            return await self._fetch_search_amazon(query, domain, category, limit)
+
+        return await get_cached_or_fetch(
+            prefix="amazon_search",
+            identifier=f"{query}_{domain}_{category}_{limit}",
+            fetch_func=fetch_func,
+            ttl=cache_ttl
+        )
+
+    async def _fetch_search_amazon(
+        self,
+        query: str,
+        domain: str,
+        category: Optional[str],
+        limit: int
+    ) -> List[Dict[str, Any]]:
+        """内部方法：实际调用搜索API"""
         payload = {
             "source": "amazon_search",
             "query": query,

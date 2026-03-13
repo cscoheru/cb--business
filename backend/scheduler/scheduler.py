@@ -6,17 +6,20 @@ from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.jobstores.memory import MemoryJobStore
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.asyncio import AsyncIOExecutor
 
 from config.settings import settings
+from config.database import engine
 
 logger = logging.getLogger(__name__)
 
-# 任务存储配置（Railway兼容：使用内存存储而不是SQLite）
-# Railway的文件系统可能不支持SQLite写入
+# 任务存储配置（使用PostgreSQL持久化）
 jobstores = {
-    'default': MemoryJobStore()
+    'default': SQLAlchemyJobStore(
+        url=engine.url,
+        tablename='apscheduler_jobs'
+    )
 }
 
 # 执行器配置
@@ -91,6 +94,25 @@ async def start_scheduler():
             replace_existing=True,
         )
         logger.info("  ✓ 已注册: 清理过期文章 (每天凌晨3点)")
+
+        # ============================================
+        # Phase 1: 每日信息卡片生成任务
+        # ============================================
+        try:
+            from scheduler.tasks import generate_daily_cards_task
+
+            # 每天早上8点生成信息卡片
+            scheduler.add_job(
+                generate_daily_cards_task,
+                trigger=CronTrigger(hour=8, minute=0),
+                id='generate_daily_cards',
+                name='生成每日信息卡片',
+                replace_existing=True,
+                misfire_grace_time=7200,  # 错过2小时内的任务
+            )
+            logger.info("  ✓ 已注册: 生成每日信息卡片 (每天早上8点)")
+        except ImportError as e:
+            logger.warning(f"卡片生成任务不可用: {e}")
 
     except ImportError as e:
         logger.warning(f"Scheduler tasks not available: {e}")

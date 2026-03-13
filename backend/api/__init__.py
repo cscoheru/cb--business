@@ -31,6 +31,8 @@ from api.keywords import router as keywords_router
 from api.products_real import router as products_real_router
 from api.cards import router as cards_router
 from api.favorites import router as favorites_router
+from api.batch_operations import router as batch_operations_router
+from api.openclaw_integration import router as openclaw_router
 
 
 # 创建FastAPI应用
@@ -142,6 +144,10 @@ app.include_router(social_router)
 app.include_router(keywords_router)
 app.include_router(cards_router)
 app.include_router(favorites_router)
+
+# OpenClaw集成路由
+app.include_router(batch_operations_router)
+app.include_router(openclaw_router)
 
 # 可选的 crawler 路由（依赖可能未安装）
 try:

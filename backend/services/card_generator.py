@@ -15,7 +15,7 @@ from services.cache import cache_service
 logger = logging.getLogger(__name__)
 
 
-# 3个目标品类配置
+# 热门品类配置 - 高需求跨境电商商品
 CATEGORIES = {
     'wireless_earbuds': {
         'name': '无线耳机',
@@ -30,6 +30,51 @@ CATEGORIES = {
     'fitness_trackers': {
         'name': '健身追踪器',
         'search_query': 'fitness tracker watch',
+        'limit': 20
+    },
+    'phone_chargers': {
+        'name': '手机充电器',
+        'search_query': 'phone charger fast charging',
+        'limit': 20
+    },
+    'desk_lamps': {
+        'name': 'LED台灯',
+        'search_query': 'LED desk lamp',
+        'limit': 20
+    },
+    'phone_cases': {
+        'name': '手机壳',
+        'search_query': 'phone case protective',
+        'limit': 20
+    },
+    'yoga_mats': {
+        'name': '瑜伽垫',
+        'search_query': 'yoga mat exercise',
+        'limit': 20
+    },
+    'coffee_makers': {
+        'name': '咖啡机',
+        'search_query': 'coffee maker drip',
+        'limit': 20
+    },
+    'bluetooth_speakers': {
+        'name': '蓝牙音箱',
+        'search_query': 'bluetooth speaker portable',
+        'limit': 20
+    },
+    'webcams': {
+        'name': '网络摄像头',
+        'search_query': 'webcam HD 1080p',
+        'limit': 20
+    },
+    'keyboards': {
+        'name': '机械键盘',
+        'search_query': 'mechanical keyboard gaming',
+        'limit': 20
+    },
+    'mouse': {
+        'name': '无线鼠标',
+        'search_query': 'wireless mouse ergonomic',
         'limit': 20
     }
 }
@@ -169,11 +214,20 @@ class CardGenerator:
 
     def _get_price_sweet_spot(self, category_key: str, price_analysis: Dict) -> Dict:
         """获取价格甜蜜点"""
-        # 基于Phase 0真实数据
+        # 基于市场数据的甜蜜点配置
         sweet_spots = {
             'wireless_earbuds': {'min': 20, 'max': 30, 'best': 25},
             'smart_plugs': {'min': 20, 'max': 30, 'best': 25},
-            'fitness_trackers': {'min': 30, 'max': 50, 'best': 45}
+            'fitness_trackers': {'min': 30, 'max': 50, 'best': 45},
+            'phone_chargers': {'min': 15, 'max': 25, 'best': 20},
+            'desk_lamps': {'min': 20, 'max': 40, 'best': 30},
+            'phone_cases': {'min': 10, 'max': 20, 'best': 15},
+            'yoga_mats': {'min': 20, 'max': 40, 'best': 30},
+            'coffee_makers': {'min': 50, 'max': 100, 'best': 75},
+            'bluetooth_speakers': {'min': 25, 'max': 50, 'best': 35},
+            'webcams': {'min': 40, 'max': 80, 'best': 60},
+            'keyboards': {'min': 30, 'max': 60, 'best': 45},
+            'mouse': {'min': 15, 'max': 30, 'best': 22}
         }
 
         spot = sweet_spots.get(category_key, {'min': 20, 'max': 50, 'best': 35})
@@ -196,12 +250,22 @@ class CardGenerator:
             score += 10
 
         # 品类特定调整
-        if category_key == 'wireless_earbuds':
-            score += 10  # 需求大
-        elif category_key == 'smart_plugs':
-            score += 5   # 竞争激烈
-        elif category_key == 'fitness_trackers':
-            score += 15  # 市场大
+        category_bonus = {
+            'wireless_earbuds': 10,    # 需求大
+            'smart_plugs': 5,         # 竞争激烈
+            'fitness_trackers': 15,   # 市场大
+            'phone_chargers': 12,     # 配件刚需
+            'desk_lamps': 8,          # 家居刚需
+            'phone_cases': 10,        # 快消品属性
+            'yoga_mats': 7,          # 健康趋势
+            'coffee_makers': 9,      # 办公刚需
+            'bluetooth_speakers': 11, # 户外需求
+            'webcams': 14,           # 远程办公趋势
+            'keyboards': 8,          # 外设升级
+            'mouse': 8               # 日常必需
+        }
+
+        score += category_bonus.get(category_key, 0)
 
         return min(score, 100)
 
@@ -209,89 +273,139 @@ class CardGenerator:
         """获取fallback测试数据（当Oxylabs失败时使用）"""
         fallback_data = {
             'wireless_earbuds': [
-                {
-                    'asin': 'B0B66CJZL5',
-                    'title': 'Anker P20i True Wireless',
-                    'price': 19.99,
-                    'rating': 4.6,
-                    'reviews_count': 97900,
-                    'url': 'https://amazon.com/dp/B0B66CJZL5'
-                },
-                {
-                    'asin': 'B09QMQYHJC',
-                    'title': 'Soundcore by Anker Life A1',
-                    'price': 29.99,
-                    'rating': 4.5,
-                    'reviews_count': 8500,
-                    'url': 'https://amazon.com/dp/B09QMQYHJC'
-                }
+                {'asin': 'B0B66CJZL5', 'title': 'Anker P20i True Wireless', 'price': 19.99, 'rating': 4.6, 'reviews_count': 97900, 'url': 'https://amazon.com/dp/B0B66CJZL5'},
+                {'asin': 'B09QMQYHJC', 'title': 'Soundcore by Anker Life A1', 'price': 29.99, 'rating': 4.5, 'reviews_count': 8500, 'url': 'https://amazon.com/dp/B09QMQYHJC'}
             ],
             'smart_plugs': [
-                {
-                    'asin': 'B08R6WK6W8',
-                    'title': 'Kasa Smart Plug HS103P',
-                    'price': 14.99,
-                    'rating': 4.6,
-                    'reviews_count': 285000,
-                    'url': 'https://amazon.com/dp/B08R6WK6W8'
-                },
-                {
-                    'asin': 'B07ZSYSCN4',
-                    'title': 'Wyze Smart Wi-Fi Plug',
-                    'price': 14.98,
-                    'rating': 4.6,
-                    'reviews_count': 45000,
-                    'url': 'https://amazon.com/dp/B07ZSYSCN4'
-                }
+                {'asin': 'B08R6WK6W8', 'title': 'Kasa Smart Plug HS103P', 'price': 14.99, 'rating': 4.6, 'reviews_count': 285000, 'url': 'https://amazon.com/dp/B08R6WK6W8'},
+                {'asin': 'B07ZSYSCN4', 'title': 'Wyze Smart Wi-Fi Plug', 'price': 14.98, 'rating': 4.6, 'reviews_count': 45000, 'url': 'https://amazon.com/dp/B07ZSYSCN4'}
             ],
             'fitness_trackers': [
-                {
-                    'asin': 'B0BPHHZ6HS',
-                    'title': 'Fitbit Inspire 3',
-                    'price': 79.95,
-                    'rating': 4.6,
-                    'reviews_count': 18500,
-                    'url': 'https://amazon.com/dp/B0BPHHZ6HS'
-                },
-                {
-                    'asin': 'B0BPHCX8J4',
-                    'title': 'Fitbit Inspire 2',
-                    'price': 69.95,
-                    'rating': 4.5,
-                    'reviews_count': 32000,
-                    'url': 'https://amazon.com/dp/B0BPHCX8J4'
-                }
+                {'asin': 'B0BPHHZ6HS', 'title': 'Fitbit Inspire 3', 'price': 79.95, 'rating': 4.6, 'reviews_count': 18500, 'url': 'https://amazon.com/dp/B0BPHHZ6HS'},
+                {'asin': 'B0BPHCX8J4', 'title': 'Fitbit Inspire 2', 'price': 69.95, 'rating': 4.5, 'reviews_count': 32000, 'url': 'https://amazon.com/dp/B0BPHCX8J4'}
+            ],
+            'phone_chargers': [
+                {'asin': 'B09RZWPF4B', 'title': 'Anker 313 Charger', 'price': 15.99, 'rating': 4.7, 'reviews_count': 156000, 'url': 'https://amazon.com/dp/B09RZWPF4B'},
+                {'asin': 'B09HSJNMZW', 'title': 'Samsung 25W Charger', 'price': 18.99, 'rating': 4.6, 'reviews_count': 45000, 'url': 'https://amazon.com/dp/B09HSJNMZW'}
+            ],
+            'desk_lamps': [
+                {'asin': 'B08QD2KNWQ', 'title': 'Litom LED Desk Lamp', 'price': 25.99, 'rating': 4.5, 'reviews_count': 32000, 'url': 'https://amazon.com/dp/B08QD2KNWQ'},
+                {'asin': 'B07VGLXFJR', 'title': 'BenQ e-Reading Lamp', 'price': 39.99, 'rating': 4.6, 'reviews_count': 8900, 'url': 'https://amazon.com/dp/B07VGLXFJR'}
+            ],
+            'phone_cases': [
+                {'asin': 'B08L5NPJSL', 'title': 'Spigen Case for iPhone', 'price': 12.99, 'rating': 4.5, 'reviews_count': 98000, 'url': 'https://amazon.com/dp/B08L5NPJSL'},
+                {'asin': 'B08GWHKWV7', 'title': 'OtterBox Commuter Case', 'price': 18.99, 'rating': 4.7, 'reviews_count': 125000, 'url': 'https://amazon.com/dp/B08GWHKWV7'}
+            ],
+            'yoga_mats': [
+                {'asin': 'B08R3ZTPM4', 'title': 'BalanceFrom GoYoga Mat', 'price': 29.99, 'rating': 4.6, 'reviews_count': 78000, 'url': 'https://amazon.com/dp/B08R3ZTPM4'},
+                {'asin': 'B08P5ZYHJM', 'title': 'Liforme Yoga Mat', 'price': 39.99, 'rating': 4.5, 'reviews_count': 12000, 'url': 'https://amazon.com/dp/B08P5ZYHJM'}
+            ],
+            'coffee_makers': [
+                {'asin': 'B07PQ2JHW6', 'title': 'Hamilton Beach FlexBrew', 'price': 59.99, 'rating': 4.5, 'reviews_count': 156000, 'url': 'https://amazon.com/dp/B07PQ2JHW6'},
+                {'asin': 'B08J5NYTK2', 'title': 'Keurig K-Mini Brewer', 'price': 79.99, 'rating': 4.4, 'reviews_count': 95000, 'url': 'https://amazon.com/dp/B08J5NYTK2'}
+            ],
+            'bluetooth_speakers': [
+                {'asin': 'B095FMZ9K4', 'title': 'JBL Flip 6 Speaker', 'price': 79.99, 'rating': 4.6, 'reviews_count': 45000, 'url': 'https://amazon.com/dp/B095FMZ9K4'},
+                {'asin': 'B08YYMPHFS', 'title': 'Anker Soundcore 3', 'price': 29.99, 'rating': 4.5, 'reviews_count': 67000, 'url': 'https://amazon.com/dp/B08YYMPHFS'}
+            ],
+            'webcams': [
+                {'asin': 'B085HJBK5C', 'title': 'Logitech C920x Webcam', 'price': 59.99, 'rating': 4.5, 'reviews_count': 89000, 'url': 'https://amazon.com/dp/B085HJBK5C'},
+                {'asin': 'B087T7K3MR', 'title': 'Razer Kiyo Webcam', 'price': 49.99, 'rating': 4.4, 'reviews_count': 23000, 'url': 'https://amazon.com/dp/B087T7K3MR'}
+            ],
+            'keyboards': [
+                {'asin': 'B07WJXH3Y6', 'title': 'Keychron K2 Keyboard', 'price': 49.99, 'rating': 4.5, 'reviews_count': 12000, 'url': 'https://amazon.com/dp/B07WJXH3Y6'},
+                {'asin': 'B08MTTMW7B', 'title': 'Logitech G915 TKL', 'price': 89.99, 'rating': 4.6, 'reviews_count': 15000, 'url': 'https://amazon.com/dp/B08MTTMW7B'}
+            ],
+            'mouse': [
+                {'asin': 'B08XJ2NJLQ', 'title': 'Logitech MX Master 3', 'price': 69.99, 'rating': 4.7, 'reviews_count': 18000, 'url': 'https://amazon.com/dp/B08XJ2NJLQ'},
+                {'asin': 'B07W1VMHFT', 'title': 'Anker Vertical Mouse', 'price': 19.99, 'rating': 4.4, 'reviews_count': 35000, 'url': 'https://amazon.com/dp/B07W1VMHFT'}
             ]
         }
         return fallback_data.get(category_key, [])
 
     def _generate_recommendations(self, category_key: str, products: List[Dict]) -> List[str]:
         """生成推荐建议"""
-        recommendations = []
-
-        if category_key == 'wireless_earbuds':
-            recommendations = [
+        recommendations_map = {
+            'wireless_earbuds': [
                 "目标价格: $25-35，靠近Anker P20i的畅销价格",
                 "核心卖点: 防丢失设计 + 稳定连接",
                 "差异化: 不拼高端ANC，专注解决用户痛点",
                 "市场定位: 东南亚（性价比）+ 美国（品质）"
-            ]
-        elif category_key == 'smart_plugs':
-            recommendations = [
+            ],
+            'smart_plugs': [
                 "目标价格: $20-30",
                 "核心功能: 能耗监测 + 多插座设计",
                 "差异化: 避免纯价格竞争",
                 "市场定位: 美国智能家居市场"
-            ]
-        elif category_key == 'fitness_trackers':
-            recommendations = [
+            ],
+            'fitness_trackers': [
                 "目标价格: $40-60 (中端) 或 $20-30 (预算)",
                 "核心功能: 长续航 (+2周) + 健康监测",
                 "差异化: 避免与Apple/Samsung正面竞争",
                 "市场定位: 预算市场 + 特定运动场景"
+            ],
+            'phone_chargers': [
+                "目标价格: $15-25",
+                "核心卖点: 快充协议兼容性 + 多口设计",
+                "差异化: 支持多种快充协议 (PD/QC/三星)",
+                "市场定位: 全球通用 + 办公差旅场景"
+            ],
+            'desk_lamps': [
+                "目标价格: $25-40",
+                "核心功能: 护眼模式 + USB充电口",
+                "差异化: 智能调光 + 多角度调节",
+                "市场定位: 居家办公 + 学生市场"
+            ],
+            'phone_cases': [
+                "目标价格: $10-20",
+                "核心卖点: 兼容最新机型 + 保护性强",
+                "差异化: 个性化设计 + 材质创新",
+                "市场定位: 快速更新 + 节日主题"
+            ],
+            'yoga_mats': [
+                "目标价格: $25-40",
+                "核心功能: 防滑纹理 + 环保材质",
+                "差异化: 加厚款 + 便携收纳",
+                "市场定位: 家庭健身 + 瑜伽工作室"
+            ],
+            'coffee_makers': [
+                "目标价格: $50-100",
+                "核心功能: 快速 brewing + 温度控制",
+                "差异化: 兼容K杯 + 美式滴滤双用",
+                "市场定位: 办公室 + 家庭日常使用"
+            ],
+            'bluetooth_speakers': [
+                "目标价格: $30-50",
+                "核心卖点: 防水设计 + 长续航",
+                "差异化: 户外便携 + 低音增强",
+                "市场定位: 户外活动 + 派对场景"
+            ],
+            'webcams': [
+                "目标价格: $50-80",
+                "核心功能: 1080p高清 + 自动对焦",
+                "差异化: 隐私盖 + 三脚架接口",
+                "市场定位: 远程办公 + 直播带货"
+            ],
+            'keyboards': [
+                "目标价格: $40-60",
+                "核心卖点: 热插拔 + 多设备连接",
+                "差异化: 客制化键帽 + 静音设计",
+                "市场定位: 办公游戏双场景 + 机械手感"
+            ],
+            'mouse': [
+                "目标价格: $18-30",
+                "核心功能: 人体工学 + 无线连接",
+                "差异化: 垂直握持 + 可编程按键",
+                "市场定位: 办公健康 + 预防鼠标手"
             ]
+        }
 
-        return recommendations
+        return recommendations_map.get(category_key, [
+            "目标价格: 根据市场分析确定",
+            "核心卖点: 解决用户核心痛点",
+            "差异化: 避开头部竞品",
+            "市场定位: 细分市场切入"
+        ])
 
     async def generate_card(self, category_key: str) -> Card:
         """
@@ -444,7 +558,7 @@ async def get_cards_for_user() -> Dict[str, Any]:
     """
     为用户获取卡片（按需生成模式）
 
-    这是新的主要入口函数
+    首页只显示评分最高的3张卡片
 
     Returns:
         API响应
@@ -452,10 +566,26 @@ async def get_cards_for_user() -> Dict[str, Any]:
     try:
         cards = await get_or_generate_cards()
 
+        # cards may be Card objects or dicts (from cache)
+        card_dicts = []
+        for card in cards:
+            if isinstance(card, dict):
+                card_dicts.append(card)
+            else:
+                card_dicts.append(card.to_dict())
+
+        # 按opportunity_score排序，取前3张
+        sorted_cards = sorted(
+            card_dicts,
+            key=lambda c: c.get('content', {}).get('summary', {}).get('opportunity_score', 0),
+            reverse=True
+        )
+        top_cards = sorted_cards[:3]
+
         return {
             "success": True,
-            "count": len(cards),
-            "cards": [card.to_dict() for card in cards],
+            "count": len(top_cards),
+            "cards": top_cards,
             "cache_info": {
                 "mode": "实时生成",
                 "cache_ttl": "30分钟"
@@ -467,6 +597,16 @@ async def get_cards_for_user() -> Dict[str, Any]:
             "success": False,
             "error": str(e)
         }
+
+
+async def get_all_cards() -> List[Any]:
+    """
+    获取所有卡片（用于历史页面和统计）
+
+    Returns:
+        所有卡片列表（Card对象或字典）
+    """
+    return await get_or_generate_cards()
 
 
 # 保留旧的定时任务函数（供scheduler使用，但降低频率）

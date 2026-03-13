@@ -23,7 +23,7 @@ class AirwallexPaymentIntent(Base):
     client_token = Column(Text)
     description = Column(Text)
     return_url = Column(Text)
-    metadata = Column(JSONB)  # {plan_tier, billing_cycle, etc}
+    payment_metadata = Column(JSONB)  # {plan_tier, billing_cycle, etc}
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

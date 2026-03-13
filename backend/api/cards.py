@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/cards", tags=["cards"])
 
 
+# 具体路由必须在通配路由之前定义
 @router.get("/daily")
 async def get_daily_cards(
     date: Optional[str] = Query(None, description="日期 (YYYY-MM-DD), 默认今天（按需生成）"),
@@ -117,6 +118,136 @@ async def get_latest_cards(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/history")
+async def get_card_history(
+    skip: int = Query(0, ge=0, description="跳过数量"),
+    limit: int = Query(20, ge=1, le=100, description="返回数量"),
+    category: Optional[str] = Query(None, description="品类筛选"),
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """
+    获取历史卡片列表（显示所有12张卡片）
+
+    Args:
+        skip: 跳过数量
+        limit: 返回数量
+        category: 品类筛选
+
+    Returns:
+        历史卡片列表
+    """
+    try:
+        # 使用生成的所有卡片
+        from services.card_generator import get_all_cards
+
+        all_cards = await get_all_cards()
+
+        # Convert any Card objects to dicts
+        card_dicts = []
+        for card in all_cards:
+            if isinstance(card, dict):
+                card_dicts.append(card)
+            else:
+                card_dicts.append(card.to_dict())
+
+        # 品类筛选
+        if category:
+            card_dicts = [c for c in card_dicts if c.get('category') == category]
+
+        # 按评分排序
+        card_dicts.sort(
+            key=lambda c: c.get('content', {}).get('summary', {}).get('opportunity_score', 0),
+            reverse=True
+        )
+
+        # 分页
+        total = len(card_dicts)
+        cards = card_dicts[skip:skip + limit]
+
+        return {
+            "success": True,
+            "total": total,
+            "skip": skip,
+            "limit": limit,
+            "cards": cards
+        }
+
+    except Exception as e:
+        logger.error(f"获取历史卡片失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/stats/overview")
+async def get_cards_overview(
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """
+    获取卡片统计概览
+
+    Returns:
+        统计数据
+    """
+    try:
+        # 总卡片数
+        total_result = await db.execute(
+            select(Card.id)
+        )
+        total = len(total_result.all())
+
+        # 已发布卡片数
+        published_result = await db.execute(
+            select(Card.id).where(Card.is_published == True)
+        )
+        published = len(published_result.all())
+
+        # 今日卡片数
+        today = datetime.now().replace(hour=0, minute=0, second=0)
+        today_result = await db.execute(
+            select(Card.id)
+            .where(Card.created_at >= today)
+            .where(Card.is_published == True)
+        )
+        today_count = len(today_result.all())
+
+        # 各品类统计
+        category_stats = {}
+        for cat_key in ['wireless_earbuds', 'smart_plugs', 'fitness_trackers',
+                       'phone_chargers', 'desk_lamps', 'phone_cases', 'yoga_mats',
+                       'coffee_makers', 'bluetooth_speakers', 'webcams', 'keyboards', 'mouse']:
+            cat_result = await db.execute(
+                select(Card.id)
+                .where(Card.category == cat_key)
+                .where(Card.is_published == True)
+            )
+            category_stats[cat_key] = len(cat_result.all())
+
+        # 总浏览量和收藏数
+        stats_result = await db.execute(
+            select(Card)
+        )
+        all_cards = stats_result.scalars().all()
+
+        total_views = sum(card.views for card in all_cards)
+        total_likes = sum(card.likes for card in all_cards)
+
+        return {
+            "success": True,
+            "overview": {
+                "total_cards": total,
+                "published_cards": published,
+                "today_cards": today_count,
+                "total_views": total_views,
+                "total_likes": total_likes,
+                "category_breakdown": category_stats
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"获取统计概览失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 通配路由 - 必须放在最后
 @router.get("/{card_id}")
 async def get_card(
     card_id: str,
@@ -196,125 +327,4 @@ async def like_card(
         raise
     except Exception as e:
         logger.error(f"收藏卡片失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/history")
-async def get_card_history(
-    skip: int = Query(0, ge=0, description="跳过数量"),
-    limit: int = Query(20, ge=1, le=100, description="返回数量"),
-    category: Optional[str] = Query(None, description="品类筛选"),
-    db: AsyncSessionLocal = Depends(get_db)
-):
-    """
-    获取历史卡片列表
-
-    Args:
-        skip: 跳过数量
-        limit: 返回数量
-        category: 品类筛选
-
-    Returns:
-        历史卡片列表
-    """
-    try:
-        query = select(Card).where(Card.is_published == True)
-
-        # 品类筛选
-        if category:
-            query = query.where(Card.category == category)
-
-        # 排序和分页
-        query = query.order_by(desc(Card.created_at))
-
-        result = await db.execute(
-            query.offset(skip).limit(limit)
-        )
-
-        cards = result.scalars().all()
-
-        # 获取总数
-        count_result = await db.execute(
-            select(Card.id).where(Card.is_published == True)
-        )
-        total = len(count_result.all())
-
-        return {
-            "success": True,
-            "total": total,
-            "skip": skip,
-            "limit": limit,
-            "cards": [card.to_dict() for card in cards]
-        }
-
-    except Exception as e:
-        logger.error(f"获取历史卡片失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/stats/overview")
-async def get_cards_overview(
-    db: AsyncSessionLocal = Depends(get_db)
-):
-    """
-    获取卡片统计概览
-
-    Returns:
-        统计数据
-    """
-    try:
-        # 总卡片数
-        total_result = await db.execute(
-            select(Card.id)
-        )
-        total = len(total_result.all())
-
-        # 已发布卡片数
-        published_result = await db.execute(
-            select(Card.id).where(Card.is_published == True)
-        )
-        published = len(published_result.all())
-
-        # 今日卡片数
-        today = datetime.now().replace(hour=0, minute=0, second=0)
-        today_result = await db.execute(
-            select(Card.id)
-            .where(Card.created_at >= today)
-            .where(Card.is_published == True)
-        )
-        today_count = len(today_result.all())
-
-        # 各品类统计
-        category_stats = {}
-        for cat_key in ['wireless_earbuds', 'smart_plugs', 'fitness_trackers']:
-            cat_result = await db.execute(
-                select(Card.id)
-                .where(Card.category == cat_key)
-                .where(Card.is_published == True)
-            )
-            category_stats[cat_key] = len(cat_result.all())
-
-        # 总浏览量和收藏数
-        stats_result = await db.execute(
-            select(Card)
-        )
-        all_cards = stats_result.scalars().all()
-
-        total_views = sum(card.views for card in all_cards)
-        total_likes = sum(card.likes for card in all_cards)
-
-        return {
-            "success": True,
-            "overview": {
-                "total_cards": total,
-                "published_cards": published,
-                "today_cards": today_count,
-                "total_views": total_views,
-                "total_likes": total_likes,
-                "category_breakdown": category_stats
-            }
-        }
-
-    except Exception as e:
-        logger.error(f"获取统计概览失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))

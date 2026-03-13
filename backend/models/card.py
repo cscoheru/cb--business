@@ -35,7 +35,7 @@ class Card(Base):
     def to_dict(self):
         """转换为字典"""
         return {
-            'id': self.id,
+            'id': str(self.id),  # Convert UUID to string for JSON serialization
             'title': self.title,
             'category': self.category,
             'content': self.content,

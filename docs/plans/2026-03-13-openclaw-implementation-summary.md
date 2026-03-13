@@ -462,3 +462,126 @@ f373416 fix: rename SQLAlchemy reserved field 'metadata' to 'payment_metadata'
 
 **最后更新**: 2026-03-13 19:30
 **状态**: Phase 1 ✅ 完成 | Phase 2 ✅ 完成 | Phase 3 ⏳ 待开始
+
+---
+
+## Phase 3: 双轨运行测试准备 ✅ 完成 (2026-03-13)
+
+### 创建的文件
+
+1. **backend/scripts/dual_track_monitor.py** (408行)
+   - 完整的双轨运行监控脚本
+   - 对比APScheduler和OpenClaw数据
+   - 计算一致性评分
+   - 检测重复数据
+   - 生成健康报告
+   - 自动保存到数据库
+
+2. **backend/migrations/004_create_dual_track_monitoring.sql**
+   - data_comparison_log表
+   - v_comparison_summary_24h视图
+   - v_data_quality_trend视图
+   - 自动source标记触发器
+   - 清理旧日志函数
+
+3. **backend/scripts/setup_phase3_dual_track.sh** (278行)
+   - 一键设置双轨运行环境
+   - 数据库表创建
+   - OpenClaw Channels配置
+   - 监控任务设置
+   - 环境验证
+
+4. **docs/plans/2026-03-13-phase3-dual-track-plan.md**
+   - 详细的测试计划
+   - 验收标准
+   - 风险与缓解措施
+   - 回滚方案
+
+### 部署状态
+
+**HK服务器配置**:
+- ✅ 数据库监控表已创建
+- ✅ OpenClaw Channels调度已安装 (crontab)
+- ✅ 监控脚本已部署
+- ✅ API容器已重启
+- ✅ 首次监控报告已生成
+
+**OpenClaw Channels调度**:
+```
+*/30 * * * * rss-crawler.js
+0 * * * * bright-data-monitor.js
+*/30 * * * * content-classifier.js
+0 */6 * * * trend-discovery.js
+0 * * * * oxylabs-monitor.js
+```
+
+### 监控报告样例
+
+```
+============================================================
+双轨运行监控报告 - 2026-03-13T12:00:52
+============================================================
+
+【数据采集对比】(过去1小时)
+  APScheduler: 0篇文章
+  OpenClaw: 0篇文章
+
+【对比分析】
+  一致性评分: 100.0%
+  数据完整度: APScheduler 0%, OpenClaw 0%
+
+【数据质量】
+  最新文章: 1376分钟前 (数据过时)
+  24h重复数: 0
+
+【健康状态】
+  状态: CRITICAL (数据过时)
+  数据库: healthy
+```
+
+### 数据库视图
+
+**v_comparison_summary_24h** - 最近24小时对比摘要
+**v_data_quality_trend** - 数据质量趋势 (最近7天)
+
+### 验证命令
+
+```bash
+# 查看监控数据
+docker exec cb-business-postgres psql -U cbuser -d cbdb \
+  -c "SELECT * FROM v_comparison_summary_24h;"
+
+# 查看数据质量趋势
+docker exec cb-business-postgres psql -U cbuser -d cbdb \
+  -c "SELECT * FROM v_data_quality_trend LIMIT 24;"
+
+# 查看OpenClaw日志
+tail -f /root/.openclaw/logs/*.log
+
+# 手动运行监控
+docker exec cb-business-api-fixed python /app/scripts/dual_track_monitor.py
+```
+
+### 下一步工作
+
+**Day 1: 收集基线数据**
+- 等待OpenClaw Channels开始采集数据
+- 收集24小时对比数据
+- 分析数据质量差异
+
+**Day 2-3: 对比分析**
+- 对比APScheduler和OpenClaw数据
+- 验证数据一致性
+- 检查性能指标
+
+**Day 4: 评估决策**
+- 评估是否进入Phase 4 (逐步迁移)
+- 或继续优化OpenClaw Channels
+
+### Git提交记录
+
+```
+cd43633 fix: handle timezone-aware datetimes in monitoring script
+082b93e feat: add Phase 3 dual track monitoring system
+```
+

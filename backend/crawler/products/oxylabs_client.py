@@ -27,8 +27,9 @@ logger = logging.getLogger(__name__)
 class OxylabsConfig:
     """Oxylabs API 配置"""
     base_url: str = "https://realtime.oxylabs.io/v1/queries"
-    username: str = os.getenv("OXYLABS_USERNAME", "fisher_VEpfJ.kCtsXux5mL~JX")
+    username: str = os.getenv("OXYLABS_USERNAME", "fisher_D2vWh")
     password: str = os.getenv("OXYLABS_PASSWORD", "")
+    proxy_url: str = os.getenv("OXYLABS_PROXY", "http://unblock.oxylabs.io:60000")
 
     @property
     def auth(self) -> tuple:
@@ -40,10 +41,21 @@ class OxylabsClient:
 
     def __init__(self, config: Optional[OxylabsConfig] = None):
         self.config = config or OxylabsConfig()
+
+        # 配置代理
+        proxies = None
+        if self.config.proxy_url:
+            proxies = {
+                "http://": self.config.proxy_url,
+                "https:// self.config.proxy_url,
+            }
+            logger.info(f"🌐 使用Oxylabs代理: {self.config.proxy_url}")
+
         self.client = httpx.AsyncClient(
             auth=self.config.auth,
             timeout=60.0,
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            proxies=proxies
         )
 
     async def close(self):

@@ -16,6 +16,7 @@ class AirwallexConfig:
 
     # API Keys (set in environment variables)
     API_KEY = os.getenv("AIRWALLEX_API_KEY", "")
+    SCOPED_API_KEY = os.getenv("AIRWALLEX_SCOPED_API_KEY", "5d407acf3dfa6535f89cb5dc0b8f1a4c97037fa64c54d67544fd6371b8b0e4618e09c6d8a34ff6cfb3069d4aade80e57")
     API_BASE_URL = os.getenv("AIRWALLEX_API_URL", "https://api-airwallex.com")
 
     # Account & Organization IDs
@@ -58,12 +59,16 @@ class AirwallexService:
     """Airwallex Payment Service"""
 
     def __init__(self):
-        self.api_key = AirwallexConfig.API_KEY
+        # Use scoped API key if available, otherwise fall back to regular API key
+        self.api_key = AirwallexConfig.SCOPED_API_KEY or AirwallexConfig.API_KEY
         self.base_url = AirwallexConfig.API_BASE_URL
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
+        # Log which key type is being used (for debugging)
+        if AirwallexConfig.SCOPED_API_KEY:
+            logger.info("Using Airwallex Scoped API Key")
 
     async def _make_request(
         self,

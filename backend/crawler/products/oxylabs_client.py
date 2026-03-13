@@ -34,8 +34,8 @@ class OxylabsConfig:
 
     # Web Unblocker代理 (备用: 动态IP、绕过反爬虫)
     proxy_url: str = os.getenv("OXYLABS_PROXY", "http://unblock.oxylabs.io:60000")
-    username: str = os.getenv("OXYLABS_USERNAME", "fisher_D2vWh")
-    password: str = os.getenv("OXYLABS_PASSWORD", "n=aB3Fr6EDfU")
+    username: str = os.getenv("OXYLABS_USERNAME", "fisher_VEpfJ")
+    password: str = os.getenv("OXYLABS_PASSWORD", "55az+EGUVu~RN")
 
     # 默认使用数据中心代理
     use_dc_proxy: bool = True

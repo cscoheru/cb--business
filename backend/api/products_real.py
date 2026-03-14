@@ -5,6 +5,8 @@ from typing import List, Dict, Any, Optional
 import logging
 from datetime import datetime, timedelta
 import asyncio
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 from sqlalchemy import select, desc
 from config.database import AsyncSessionLocal, get_db
@@ -12,13 +14,24 @@ from models.card import Card
 from crawler.products.oxylabs_client import OxylabsClient
 from config.redis import redis_client
 from services.product_data_service import get_product_data_service
+import os
 
 router = APIRouter(prefix="/api/v1/products", tags=["products"])
 logger = logging.getLogger(__name__)
 
+# 同步数据库连接配置（用于 Products API）
+SYNC_DB_CONFIG = {
+    "host": os.getenv("POSTGRES_HOST", "cb-business-postgres"),
+    "port": int(os.getenv("POSTGRES_PORT", "5432")),
+    "database": os.getenv("POSTGRES_DB", "cbdb"),
+    "user": os.getenv("POSTGRES_USER", "cbuser"),
+    "password": os.getenv("POSTGRES_PASSWORD", "cbuser123"),
+}
+
 
 # Amazon 产品分类配置（基于真实Amazon分类）
 AMAZON_CATEGORIES = {
+    # 大类
     "electronics": {
         "id": "electronics",
         "name": "电子",
@@ -75,6 +88,91 @@ AMAZON_CATEGORIES = {
         "amazon_path": "pets",
         "keywords": ["dog", "cat", "pet supplies", "aquarium"]
     },
+    # 具体产品类别 (直接从 Cards 表读取)
+    "wireless_earbuds": {
+        "id": "wireless_earbuds",
+        "name": "无线耳机",
+        "emoji": "🎧",
+        "amazon_path": "electronics",
+        "keywords": ["earbuds", "wireless", "headphones"]
+    },
+    "fitness_trackers": {
+        "id": "fitness_trackers",
+        "name": "健身追踪器",
+        "emoji": "⌚",
+        "amazon_path": "sports-fitness",
+        "keywords": ["fitness", "tracker", "smartwatch"]
+    },
+    "smart_plugs": {
+        "id": "smart_plugs",
+        "name": "智能插座",
+        "emoji": "🔌",
+        "amazon_path": "home-garden",
+        "keywords": ["smart", "plug", "outlet"]
+    },
+    "bluetooth_speakers": {
+        "id": "bluetooth_speakers",
+        "name": "蓝牙音箱",
+        "emoji": "🔊",
+        "amazon_path": "electronics",
+        "keywords": ["bluetooth", "speaker", "audio"]
+    },
+    "phone_chargers": {
+        "id": "phone_chargers",
+        "name": "手机充电器",
+        "emoji": "🔋",
+        "amazon_path": "electronics",
+        "keywords": ["charger", "phone", "usb"]
+    },
+    "desk_lamps": {
+        "id": "desk_lamps",
+        "name": "台灯",
+        "emoji": "💡",
+        "amazon_path": "home-garden",
+        "keywords": ["lamp", "desk", "light"]
+    },
+    "mouse": {
+        "id": "mouse",
+        "name": "鼠标",
+        "emoji": "🖱️",
+        "amazon_path": "electronics",
+        "keywords": ["mouse", "wireless", "ergonomic"]
+    },
+    "coffee_makers": {
+        "id": "coffee_makers",
+        "name": "咖啡机",
+        "emoji": "☕",
+        "amazon_path": "home-kitchen",
+        "keywords": ["coffee", "maker", "espresso"]
+    },
+    "webcams": {
+        "id": "webcams",
+        "name": "网络摄像头",
+        "emoji": "📷",
+        "amazon_path": "electronics",
+        "keywords": ["webcam", "camera", "video"]
+    },
+    "keyboards": {
+        "id": "keyboards",
+        "name": "键盘",
+        "emoji": "⌨️",
+        "amazon_path": "electronics",
+        "keywords": ["keyboard", "mechanical", "wireless"]
+    },
+    "yoga_mats": {
+        "id": "yoga_mats",
+        "name": "瑜伽垫",
+        "emoji": "🧘",
+        "amazon_path": "sports-fitness",
+        "keywords": ["yoga", "mat", "fitness"]
+    },
+    "phone_cases": {
+        "id": "phone_cases",
+        "name": "手机壳",
+        "emoji": "📱",
+        "amazon_path": "electronics",
+        "keywords": ["case", "phone", "cover"]
+    },
 }
 
 
@@ -107,6 +205,19 @@ CATEGORY_MAPPING = {
     "pets": [
         "pet_supplies", "dog_food", "cat_food", "pet_toys"
     ],
+    # 具体类别映射到自己
+    "wireless_earbuds": ["wireless_earbuds"],
+    "fitness_trackers": ["fitness_trackers"],
+    "smart_plugs": ["smart_plugs"],
+    "bluetooth_speakers": ["bluetooth_speakers"],
+    "phone_chargers": ["phone_chargers"],
+    "desk_lamps": ["desk_lamps"],
+    "mouse": ["mouse"],
+    "coffee_makers": ["coffee_makers"],
+    "webcams": ["webcams"],
+    "keyboards": ["keyboards"],
+    "yoga_mats": ["yoga_mats"],
+    "phone_cases": ["phone_cases"],
 }
 
 
@@ -136,6 +247,165 @@ async def _set_cached_category_count(category_id: str, count: int):
     _cache_timestamps[cache_key] = datetime.now()
 
 
+def _fetch_products_from_cards_sync(
+    category_id: str,
+    limit: int
+) -> Optional[Dict[str, Any]]:
+    """
+    从 Cards 表读取产品数据（使用同步连接）
+
+    Args:
+        category_id: 前端分类ID (wireless_earbuds, electronics等)
+        limit: 返回数量限制
+
+    Returns:
+        包含产品的字典，如果未找到数据则返回None
+    """
+    try:
+        # 使用与 crawler_sync.py 完全相同的数据库配置
+        DB_CONFIG = {
+            "host": "cb-business-postgres",
+            "port": 5432,
+            "database": "cbdb",
+            "user": "cbuser",
+            "password": "k8VmK8PvqAFlEdirpJVJNo8DPe2bVlYPtV6xea+DlQQ="  # 使用实际密码
+        }
+
+        conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+
+        # 获取映射的类别列表
+        mapped_categories = CATEGORY_MAPPING.get(category_id, [])
+
+        # 如果是具体类别（只有一个映射），直接查询
+        if len(mapped_categories) == 1 and mapped_categories[0] == category_id:
+            query = """
+                SELECT amazon_data
+                FROM cards
+                WHERE category = %s
+                  AND amazon_data IS NOT NULL
+                  AND is_published = true
+                ORDER BY created_at DESC
+                LIMIT 1
+            """
+            cursor.execute(query, [category_id])
+            card = cursor.fetchone()
+
+            if not card or not card['amazon_data']:
+                logger.debug(f"No products found in cards for {category_id}")
+                cursor.close()
+                conn.close()
+                return None
+
+            # 提取产品数据
+            products = card['amazon_data'].get("products", [])
+        else:
+            # 大类：从多个子类别聚合数据
+            all_products = []
+            for sub_category in mapped_categories:
+                query = """
+                    SELECT amazon_data
+                    FROM cards
+                    WHERE category = %s
+                      AND amazon_data IS NOT NULL
+                      AND is_published = true
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """
+                cursor.execute(query, [sub_category])
+                card = cursor.fetchone()
+
+                if card and card['amazon_data']:
+                    products = card['amazon_data'].get("products", [])
+                    if products:
+                        all_products.extend(products)
+                        logger.debug(f"Found {len(products)} products in {sub_category}")
+
+            if not all_products:
+                logger.debug(f"No products found in cards for {category_id}")
+                cursor.close()
+                conn.close()
+                return None
+
+            products = all_products
+
+        cursor.close()
+        conn.close()
+
+        if not products:
+            return None
+
+        # 格式化产品数据
+        formatted_products = []
+        for product in products[:limit]:
+            if not product or not isinstance(product, dict):
+                continue
+
+            # 处理品牌字段
+            brand = (
+                product.get("brand") or
+                product.get("manufacturer") or
+                product.get("brand_name") or
+                "Unknown Brand"
+            )
+
+            # 处理价格
+            price = product.get("price")
+            if isinstance(price, (int, float)):
+                price = float(price)
+            else:
+                price = None
+
+            # 处理评分
+            rating = product.get("rating")
+            if isinstance(rating, (int, float)):
+                rating = float(rating)
+            else:
+                rating = None
+
+            # 处理评论数
+            reviews_count = product.get("reviews_count", 0)
+            if isinstance(reviews_count, str):
+                reviews_count = 0
+            elif not isinstance(reviews_count, int):
+                reviews_count = 0
+
+            # 构建产品URL
+            asin = product.get("asin", "")
+            url = product.get("url")
+            if url and not url.startswith("http"):
+                url = f"https://www.amazon.com{url}"
+            elif not url and asin:
+                url = f"https://www.amazon.com/dp/{asin}"
+            else:
+                url = "https://www.amazon.com"
+
+            formatted_products.append({
+                "asin": asin,
+                "title": product.get("title", "N/A"),
+                "brand": brand,
+                "price": price,
+                "rating": rating,
+                "reviews_count": reviews_count,
+                "image": product.get("image"),
+                "url": url,
+                "source": "cards_table"
+            })
+
+        logger.info(f"Returning {len(formatted_products)} products from cards for {category_id}")
+        return {
+            "category": category_id,
+            "category_name": AMAZON_CATEGORIES.get(category_id, {}).get("name", category_id),
+            "products": formatted_products,
+            "count": len(formatted_products),
+            "data_source": "cards_table"
+        }
+
+    except Exception as e:
+        logger.error(f"Error reading cards from database: {e}")
+        return None
+
+
 async def _fetch_products_from_cards(
     category_id: str,
     limit: int,
@@ -154,121 +424,8 @@ async def _fetch_products_from_cards(
     Returns:
         包含产品的字典，如果未找到数据则返回None
     """
-    # 如果需要完整详情，使用 ProductDataService
-    if fetch_details:
-        try:
-            service = get_product_data_service()
-            products = await service.get_products_with_details(
-                category_id=category_id,
-                category_mapping=CATEGORY_MAPPING,
-                limit=limit,
-                db=db
-            )
-
-            if products:
-                logger.info(f"Retrieved {len(products)} products with details for {category_id}")
-                return {
-                    "category": category_id,
-                    "category_name": AMAZON_CATEGORIES.get(category_id, {}).get("name", category_id),
-                    "products": products,
-                    "count": len(products),
-                    "data_source": "cards_table_with_details"
-                }
-        except Exception as e:
-            logger.warning(f"Failed to fetch products with details: {e}")
-            # 继续使用普通方法
-
-    # 普通方法：只从 cards 表读取缓存数据
-    mapped_categories = CATEGORY_MAPPING.get(category_id, [])
-
-    if not mapped_categories:
-        logger.debug(f"No mapped categories for {category_id}, will use Oxylabs fallback")
-        return None
-
-    # 从所有映射的类别中获取最新的卡片
-    results = []
-    for card_category in mapped_categories:
-        try:
-            card_result = await db.execute(
-                select(Card)
-                .where(Card.category == card_category)
-                .where(Card.amazon_data.isnot(None))
-                .where(Card.is_published == True)
-                .order_by(desc(Card.created_at))
-                .limit(1)
-            )
-            card = card_result.scalar_one_or_none()
-
-            if card and card.amazon_data:
-                products = card.amazon_data.get("products", [])
-                if products:
-                    results.extend(products)
-                    logger.debug(f"Found {len(products)} products in card category {card_category}")
-        except Exception as e:
-            logger.warning(f"Error reading cards for {card_category}: {e}")
-            continue
-
-    if not results:
-        logger.debug(f"No products found in cards for {category_id}")
-        return None
-
-    # 格式化产品数据
-    formatted_products = []
-    for product in results[:limit]:
-        if not product or not isinstance(product, dict):
-            continue
-
-        # 处理品牌字段
-        brand = product.get("brand") or product.get("manufacturer") or "N/A"
-
-        # 处理价格
-        price = product.get("price")
-        if isinstance(price, (int, float)):
-            price = float(price)
-        else:
-            price = None
-
-        # 处理评分
-        rating = product.get("rating")
-        if isinstance(rating, (int, float)):
-            rating = float(rating)
-        else:
-            rating = None
-
-        # 处理评论数
-        reviews_count = product.get("reviews_count", 0)
-        if isinstance(reviews_count, str):
-            reviews_count = 0
-        elif not isinstance(reviews_count, int):
-            reviews_count = 0
-
-        # 构建产品URL
-        url = product.get("url")
-        if url and not url.startswith("http"):
-            url = f"https://www.amazon.com{url}"
-        elif not url:
-            url = f"https://www.amazon.com/dp/{product.get('asin', '')}"
-
-        formatted_products.append({
-            "asin": product.get("asin", ""),
-            "title": product.get("title", "N/A"),
-            "brand": brand,
-            "price": price,
-            "rating": rating,
-            "reviews_count": reviews_count,
-            "image": product.get("image"),  # Cards数据可能包含图片
-            "url": url,
-            "source": "cards_cache"  # 标记数据来源
-        })
-
-    logger.info(f"Returning {len(formatted_products)} products from cards for {category_id}")
-    return {
-        "category": category_id,
-        "category_name": AMAZON_CATEGORIES.get(category_id, {}).get("name", category_id),
-        "products": formatted_products,
-        "count": len(formatted_products),
-        "data_source": "cards_table"
-    }
+    # 对于所有类别，优先使用同步连接（避免异步引擎密码问题）
+    return _fetch_products_from_cards_sync(category_id, limit)
 
 
 async def _fetch_products_from_oxylabs(

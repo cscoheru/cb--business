@@ -1,121 +1,57 @@
 # services/product_data_service.py
-"""产品数据服务 - 两步获取完整产品数据
-
-第一步: 从 cards 表获取 ASIN 列表 (使用缓存)
-第二步: 批量获取产品详情 (获取完整字段: brand, image等)
-
-这样可以平衡性能和数据完整性:
-- 快速: 从 cards 表获取 ASIN 列表 (已有数据)
-- 完整: 对前 N 个产品获取详细信息 (brand, images)
-"""
-
+"""产品数据服务 - 从 Cards 表获取完整产品数据"""
 import logging
 from typing import List, Dict, Any, Optional
-from dataclasses import dataclass
-
 from sqlalchemy import select, desc
 from config.database import AsyncSessionLocal
 from models.card import Card
-from crawler.products.oxylabs_client import OxylabsClient
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class ProductDetailConfig:
-    """产品详情获取配置"""
-    # 最多获取详情的产品数量
-    max_detail_products: int = 10
-    # 其余产品使用缓存数据 (cards 表中的数据)
-    use_cache_for_remaining: bool = True
-
-
 class ProductDataService:
-    """产品数据服务 - 统一的产品数据获取接口"""
+    """
+    产品数据服务
 
-    def __init__(self, config: Optional[ProductDetailConfig] = None):
-        self.config = config or ProductDetailConfig()
+    从 Cards 表读取产品数据，支持获取完整字段（brand, image等）
+    """
+
+    def __init__(self):
+        self.cache = {}
+        self.cache_ttl = 1800  # 30分钟缓存
 
     async def get_products_with_details(
         self,
         category_id: str,
         category_mapping: Dict[str, List[str]],
-        limit: int = 24,
-        db: Optional[AsyncSessionLocal] = None
-    ) -> List[Dict[str, Any]]:
+        limit: int,
+        db: AsyncSessionLocal
+    ) -> Optional[List[Dict[str, Any]]]:
         """
-        获取产品列表 (包含完整字段)
-
-        两步获取策略:
-        1. 从 cards 表读取产品 ASIN 列表 (快速)
-        2. 对前 max_detail_products 个产品调用 Oxylabs 获取详情
+        获取包含完整详情的产品列表
 
         Args:
             category_id: 前端分类ID (electronics, home, sports等)
             category_mapping: 分类映射字典
             limit: 返回数量限制
-            db: 数据库会话 (可选，如果不提供则创建新会话)
+            db: 数据库会话
 
         Returns:
-            产品列表，前N个包含完整字段 (brand, images)，其余使用缓存数据
+            产品列表，如果未找到则返回None
         """
-        # Step 1: 从 cards 表获取 ASIN 列表
-        asin_products = await self._get_asin_list_from_cards(
-            category_id, category_mapping, limit, db
-        )
-
-        if not asin_products:
-            logger.warning(f"No products found in cards for {category_id}")
-            return []
-
-        # Step 2: 对前 N 个产品获取完整详情
-        detailed_products = []
-        cache_products = []
-
-        for i, product in enumerate(asin_products):
-            asin = product.get("asin")
-            if not asin:
-                continue
-
-            if i < self.config.max_detail_products:
-                # 获取完整产品详情
-                detail = await self._fetch_product_detail(asin)
-                if detail:
-                    detailed_products.append(detail)
-                else:
-                    # 详情获取失败，使用缓存数据
-                    cache_products.append(self._format_cache_product(product))
-            else:
-                # 使用缓存数据
-                cache_products.append(self._format_cache_product(product))
-
-        logger.info(
-            f"Retrieved {len(detailed_products)} detailed products "
-            f"and {len(cache_products)} cache products for {category_id}"
-        )
-
-        return detailed_products + cache_products[:limit - len(detailed_products)]
-
-    async def _get_asin_list_from_cards(
-        self,
-        category_id: str,
-        category_mapping: Dict[str, List[str]],
-        limit: int,
-        db: AsyncSessionLocal
-    ) -> List[Dict[str, Any]]:
-        """从 cards 表获取 ASIN 列表"""
         mapped_categories = category_mapping.get(category_id, [])
 
         if not mapped_categories:
             logger.debug(f"No mapped categories for {category_id}")
-            return []
+            return None
 
-        # 从所有映射的类别中获取最新的卡片
         all_products = []
 
+        # 从所有映射的类别中获取产品
         for card_category in mapped_categories:
             try:
-                result = await db.execute(
+                # 获取最新的卡片
+                card_result = await db.execute(
                     select(Card)
                     .where(Card.category == card_category)
                     .where(Card.amazon_data.isnot(None))
@@ -123,98 +59,169 @@ class ProductDataService:
                     .order_by(desc(Card.created_at))
                     .limit(1)
                 )
-                card = result.scalar_one_or_none()
+                card = card_result.scalar_one_or_none()
 
                 if card and card.amazon_data:
                     products = card.amazon_data.get("products", [])
                     if products:
-                        all_products.extend(products)
-                        logger.debug(f"Found {len(products)} products in {card_category}")
+                        # 增强产品数据
+                        enhanced_products = await self._enhance_products(products, card_category)
+                        all_products.extend(enhanced_products)
+                        logger.debug(f"Found {len(enhanced_products)} products in {card_category}")
             except Exception as e:
                 logger.warning(f"Error reading cards for {card_category}: {e}")
                 continue
 
-        return all_products[:limit]
-
-    async def _fetch_product_detail(self, asin: str) -> Optional[Dict[str, Any]]:
-        """获取单个产品的完整详情"""
-        try:
-            client = OxylabsClient()
-
-            # 使用搜索 API 查找该 ASIN
-            products = await client.search_amazon(
-                query=asin,
-                domain="com",
-                limit=1,
-                use_cache=True,
-                cache_ttl=3600
-            )
-
-            await client.close()
-
-            if not products or len(products) == 0:
-                logger.warning(f"No search results for ASIN {asin}")
-                return None
-
-            # 获取第一个产品
-            detail = products[0]
-
-            # 提取图片
-            image_url = self._extract_image(detail)
-
-            # 格式化返回
-            return {
-                "asin": asin,
-                "title": detail.get("title", "N/A"),
-                "brand": detail.get("brand") or detail.get("manufacturer") or "N/A",
-                "price": detail.get("price"),
-                "rating": detail.get("rating"),
-                "reviews_count": detail.get("reviews_count", 0),
-                "image": image_url,
-                "url": detail.get("url", f"https://www.amazon.com/dp/{asin}"),
-                "source": "oxylabs_search_detail"
-            }
-
-        except Exception as e:
-            logger.warning(f"Failed to fetch detail for {asin}: {e}")
-            import traceback
-            logger.debug(traceback.format_exc())
+        if not all_products:
+            logger.debug(f"No products found in cards for {category_id}")
             return None
 
-    def _format_cache_product(self, product: Dict[str, Any]) -> Dict[str, Any]:
-        """格式化缓存数据的产品"""
-        asin = product.get("asin", "")
-        return {
-            "asin": asin,
-            "title": product.get("title", "N/A"),
-            "brand": product.get("brand") or "N/A",
-            "price": product.get("price"),
-            "rating": product.get("rating"),
-            "reviews_count": product.get("reviews_count", 0),
-            "image": product.get("image"),  # 可能为 None
-            "url": product.get("url") or f"https://www.amazon.com/dp/{asin}",
-            "source": "cards_cache"
-        }
+        # 按评分排序，取前N个
+        all_products.sort(key=lambda p: p.get("rating", 0), reverse=True)
+        return all_products[:limit]
 
-    def _extract_image(self, product_data: Dict[str, Any]) -> Optional[str]:
-        """从产品数据中提取主图"""
-        # 尝试多种可能的图片字段
-        image_fields = ["main_image", "image", "image_url", "product_image"]
+    async def _enhance_products(
+        self,
+        products: List[Dict[str, Any]],
+        category: str
+    ) -> List[Dict[str, Any]]:
+        """
+        增强产品数据，确保所有必需字段都存在
 
-        for field in image_fields:
-            img = product_data.get(field)
-            if img:
-                return img
+        Args:
+            products: 原始产品列表
+            category: 产品类别
 
-        # 检查 images 数组
-        images = product_data.get("images", [])
+        Returns:
+            增强后的产品列表
+        """
+        enhanced = []
+
+        for product in products:
+            if not product or not isinstance(product, dict):
+                continue
+
+            # 处理品牌字段 - 优先级：brand > manufacturer > "Unknown"
+            brand = (
+                product.get("brand") or
+                product.get("manufacturer") or
+                product.get("brand_name") or
+                "Unknown Brand"
+            )
+
+            # 处理图片
+            image = self._extract_image(product)
+
+            # 处理价格
+            price = self._extract_price(product)
+
+            # 处理评分
+            rating = self._extract_rating(product)
+
+            # 处理评论数
+            reviews_count = self._extract_reviews_count(product)
+
+            # 构建URL
+            url = self._build_url(product)
+
+            enhanced_product = {
+                "asin": product.get("asin", ""),
+                "title": product.get("title", "N/A"),
+                "brand": brand,
+                "price": price,
+                "rating": rating,
+                "reviews_count": reviews_count,
+                "image": image,
+                "url": url,
+                "category": category,
+                "source": "cards_enhanced"
+            }
+
+            enhanced.append(enhanced_product)
+
+        return enhanced
+
+    def _extract_image(self, product: Dict[str, Any]) -> Optional[str]:
+        """提取产品图片"""
+        # 优先级：image > images[0].url > main_image > None
+        if product.get("image"):
+            return product["image"]
+
+        images = product.get("images", [])
         if images and isinstance(images, list):
             if isinstance(images[0], dict):
-                return images[0].get("url") or images[0].get("link")
+                return images[0].get("url")
             elif isinstance(images[0], str):
                 return images[0]
 
+        return product.get("main_image")
+
+    def _extract_price(self, product: Dict[str, Any]) -> Optional[float]:
+        """提取价格"""
+        price = product.get("price")
+
+        # 如果是数字，直接返回
+        if isinstance(price, (int, float)):
+            return float(price)
+
+        # 如果是字符串，尝试解析
+        if isinstance(price, str):
+            try:
+                # 移除货币符号和空格
+                clean_price = price.replace("$", "").replace(" ", "").strip()
+                return float(clean_price)
+            except (ValueError, AttributeError):
+                pass
+
         return None
+
+    def _extract_rating(self, product: Dict[str, Any]) -> Optional[float]:
+        """提取评分"""
+        rating = product.get("rating")
+
+        if isinstance(rating, (int, float)):
+            return float(rating)
+
+        if isinstance(rating, str):
+            try:
+                return float(rating)
+            except ValueError:
+                pass
+
+        return None
+
+    def _extract_reviews_count(self, product: Dict[str, Any]) -> int:
+        """提取评论数"""
+        reviews = product.get("reviews_count", 0)
+
+        if isinstance(reviews, int):
+            return reviews
+
+        if isinstance(reviews, str):
+            try:
+                return int(reviews.replace(",", "").strip())
+            except (ValueError, AttributeError):
+                pass
+
+        return 0
+
+    def _build_url(self, product: Dict[str, Any]) -> str:
+        """构建产品URL"""
+        asin = product.get("asin", "")
+
+        # 如果已有完整URL
+        url = product.get("url")
+        if url:
+            if url.startswith("http"):
+                return url
+            else:
+                return f"https://www.amazon.com{url}"
+
+        # 使用ASIN构建URL
+        if asin:
+            return f"https://www.amazon.com/dp/{asin}"
+
+        return "https://www.amazon.com"
 
 
 # 全局单例
@@ -222,8 +229,10 @@ _product_data_service: Optional[ProductDataService] = None
 
 
 def get_product_data_service() -> ProductDataService:
-    """获取全局产品数据服务单例"""
+    """获取产品数据服务单例"""
     global _product_data_service
+
     if _product_data_service is None:
         _product_data_service = ProductDataService()
+
     return _product_data_service

@@ -59,6 +59,12 @@ class BusinessOpportunity(Base):
     status = Column(SQLEnum(OpportunityStatus, values_callable=lambda x: [e.value for e in x]), nullable=False, default=OpportunityStatus.POTENTIAL, index=True)
     opportunity_type = Column(SQLEnum(OpportunityType, values_callable=lambda x: [e.value for e in x]), nullable=False, index=True)
 
+    # 关系（延迟加载）
+    from sqlalchemy.orm import relationship
+    card = relationship("Card", foreign_keys=[card_id], lazy='joined')
+    article = relationship("Article", foreign_keys=[article_id], lazy='joined')
+    user = relationship("User", foreign_keys=[user_id], lazy='joined')
+
     # 商机要素（多维度JSONB）
     # 结构: {product: {...}, region: {...}, platform: {...}, policy: {...}, brand: {...}, industry: {...}}
     elements = Column(JSONB, nullable=False, default=dict)
@@ -76,6 +82,13 @@ class BusinessOpportunity(Base):
     # 锁定状态（用于试用过期）
     is_locked = Column(Boolean, default=False, nullable=False, server_default='false', index=True)
     locked_at = Column(DateTime(timezone=True))
+
+    # 关联到Card和Article (融合设计)
+    card_id = Column(UUID(as_uuid=True), ForeignKey('cards.id', ondelete='SET NULL'), nullable=True)
+    article_id = Column(UUID(as_uuid=True), ForeignKey('articles.id', ondelete='SET NULL'), nullable=True)
+
+    # 关联的用户ID（如果商机由特定用户创建）
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
 
     # 元数据
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, index=True)
@@ -101,11 +114,53 @@ class BusinessOpportunity(Base):
             'confidence_score': self.confidence_score,
             'last_verification_at': self.last_verification_at.isoformat() if self.last_verification_at else None,
             'user_interactions': self.user_interactions or {},
+            'card_id': str(self.card_id) if self.card_id else None,
+            'article_id': str(self.article_id) if self.article_id else None,
+            'user_id': str(self.user_id) if self.user_id else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'archived_at': self.archived_at.isoformat() if self.archived_at else None,
             'archive_reason': self.archive_reason,
         }
+
+    def to_dict_include_related(self) -> Dict[str, Any]:
+        """转换为字典，包含关联的card和article数据"""
+        data = self.to_dict()
+
+        # 添加关联的Card数据
+        if self.card:
+            data['card'] = {
+                'id': str(self.card.id),
+                'title': self.card.title,
+                'category': self.card.category,
+                'content': {
+                    'summary': {
+                        'title': self.card.content.get('summary', {}).get('title', ''),
+                        'opportunity_score': self.card.content.get('summary', {}).get('opportunity_score', 0),
+                    }
+                },
+                'amazon_data': self.card.amazon_data,
+                'views': self.card.views,
+                'likes': self.card.likes,
+            }
+
+        # 添加关联的Article数据
+        if self.article:
+            data['article'] = {
+                'id': str(self.article.id),
+                'title': self.article.title,
+                'summary': self.article.summary,
+                'link': self.article.link,
+                'source': self.article.source,
+                'region': self.article.region,
+                'country': self.article.country,
+                'platform': self.article.platform,
+                'content_theme': self.article.content_theme,
+                'tags': self.article.tags,
+                'published_at': self.article.published_at.isoformat() if self.article.published_at else None,
+            }
+
+        return data
 
     def can_transition_to(self, new_status: OpportunityStatus) -> bool:
         """检查是否可以转换到新状态"""

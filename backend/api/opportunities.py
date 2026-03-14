@@ -4,9 +4,11 @@
 from fastapi import APIRouter, Query, HTTPException
 from typing import List, Dict, Any, Optional
 import logging
+from datetime import timedelta
 
 from analyzer.scoring import OpportunityScoringEngine, analyze_product_opportunity
 from crawler.products.amazon_bestsellers import AmazonBestSellersCrawler
+from services.cache import cache_service
 
 logger = logging.getLogger(__name__)
 
@@ -435,7 +437,32 @@ async def discover_opportunity(
                 'opportunity': None
             }
 
-        # 创建商机对象
+        # ✅ 融合设计：检查是否需要关联到Card或Article
+        card_id = None
+        article_id = None
+        source_type = request.signal.get('source_type')  # 'card' or 'article'
+        source_id = request.signal.get('source_id')    # UUID string
+
+        if source_type and source_id:
+            try:
+                source_uuid = uuid_lib.UUID(source_id)
+                if source_type == 'card':
+                    from models.card import Card
+                    card_result = await db.execute(select(Card).where(Card.id == source_uuid))
+                    card = card_result.scalar_one_or_none()
+                    if card:
+                        card_id = card.id
+                        logger.info(f"📦 关联到Card: {card.title}")
+                elif source_type == 'article':
+                    article_result = await db.execute(select(Article).where(Article.id == source_uuid))
+                    article = article_result.scalar_one_or_none()
+                    if article:
+                        article_id = article.id
+                        logger.info(f"📰 关联到Article: {article.title}")
+            except ValueError:
+                logger.warning(f"Invalid source_id: {source_id}")
+
+        # 创建商机对象（包含关联）
         opportunity = BusinessOpportunity(
             title=opportunity_data.get('title'),
             description=opportunity_data.get('description'),
@@ -443,7 +470,10 @@ async def discover_opportunity(
             status=OpportunityStatus.POTENTIAL,
             elements=opportunity_data.get('elements', {}),
             ai_insights=opportunity_data.get('ai_insights', {}),
-            confidence_score=opportunity_data.get('confidence_score', 0.5)
+            confidence_score=opportunity_data.get('confidence_score', 0.5),
+            card_id=card_id,      # ✅ 关联Card
+            article_id=article_id, # ✅ 关联Article
+            user_id=current_user.id # ✅ 关联创建用户
         )
 
         # 保存到数据库
@@ -490,8 +520,19 @@ async def list_opportunities(
     - Free用户: 只显示potential状态商机
     - Trial用户: 显示所有商机（试用期内）
     - Pro用户: 显示所有商机
+
+    缓存策略: 5分钟 (根据用户权限和筛选条件)
     """
     try:
+        # 生成缓存键
+        user_tier = current_user.plan_tier if current_user else 'anonymous'
+        cache_key = f"opp_list:{user_tier}:{status}:{type}:{min_confidence}:{skip}:{limit}"
+
+        # 尝试从缓存获取
+        cached_data = await cache_service.get("opportunities", cache_key)
+        if cached_data:
+            logger.debug(f"✅ 缓存命中: {cache_key}")
+            return cached_data
         # 初始化权限服务
         permission_service = PermissionService(db)
 
@@ -561,13 +602,24 @@ async def list_opportunities(
         total_result = await db.execute(count_query)
         total = len(total_result.all())
 
-        return {
+        response_data = {
             'success': True,
             'total': total,
             'count': len(opportunities),
             'user_access': user_access,
             'opportunities': [opp.to_dict() for opp in opportunities]
         }
+
+        # 存储到缓存 (5分钟)
+        await cache_service.set(
+            "opportunities",
+            cache_key,
+            response_data,
+            ttl=timedelta(minutes=5)
+        )
+        logger.debug(f"💾 缓存已存储: {cache_key}")
+
+        return response_data
 
     except Exception as e:
         logger.error(f"获取商机列表失败: {e}")
@@ -585,8 +637,20 @@ async def get_opportunity_funnel(
     权限规则:
     - 未登录/Free: 只返回potential阶段数据
     - Trial/Pro: 返回所有阶段数据
+
+    缓存策略: 3分钟 (根据用户权限)
     """
     try:
+        # 生成缓存键
+        user_tier = current_user.plan_tier if current_user else 'anonymous'
+        cache_key = f"opp_funnel:{user_tier}"
+
+        # 尝试从缓存获取
+        cached_data = await cache_service.get("opportunities", cache_key)
+        if cached_data:
+            logger.debug(f"✅ 漏斗缓存命中: {cache_key}")
+            return cached_data
+
         permission_service = PermissionService(db)
 
         # 确定用户可访问的状态
@@ -627,11 +691,22 @@ async def get_opportunity_funnel(
                 'trial_expired': await permission_service._is_trial_expired(current_user) if current_user.plan_tier == 'trial' else False
             }
 
-        return {
+        response_data = {
             'success': True,
             'funnel': funnel,
             'user_access': user_access
         }
+
+        # 存储到缓存 (3分钟)
+        await cache_service.set(
+            "opportunities",
+            cache_key,
+            response_data,
+            ttl=timedelta(minutes=3)
+        )
+        logger.debug(f"💾 漏斗缓存已存储: {cache_key}")
+
+        return response_data
 
     except Exception as e:
         logger.error(f"获取漏斗数据失败: {e}")
@@ -688,7 +763,7 @@ async def get_opportunity(
 
         response_data = {
             'success': True,
-            'opportunity': opportunity.to_dict(),
+            'opportunity': opportunity.to_dict_include_related(),  # ✅ 包含关联的card和article数据
             'data_collection_tasks': [task.to_dict() for task in tasks],
             'access': access
         }

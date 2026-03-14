@@ -5,7 +5,15 @@ import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from config.database import AsyncSessionLocal, get_db
-from services.smart_orchestrator import get_orchestrator
+
+# Optional imports - handle if smart_orchestrator is not available
+try:
+    from services.smart_orchestrator import get_orchestrator
+    SMART_ORCHESTRATOR_AVAILABLE = True
+except ImportError:
+    SMART_ORCHESTRATOR_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("smart_orchestrator not available, funnel_management and signal_discovery jobs will be disabled")
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +27,10 @@ async def funnel_management_job():
 
     每小时执行一次，检查商机状态并执行自动演进
     """
+    if not SMART_ORCHESTRATOR_AVAILABLE:
+        logger.warning("⚠️ [定时任务] 漏斗管理跳过 (smart_orchestrator not available)")
+        return
+
     logger.info("🔄 [定时任务] 开始漏斗管理")
 
     try:
@@ -38,6 +50,10 @@ async def signal_discovery_job():
 
     每30分钟执行一次，从Articles表发现新商机
     """
+    if not SMART_ORCHESTRATOR_AVAILABLE:
+        logger.warning("⚠️ [定时任务] 信号发现跳过 (smart_orchestrator not available)")
+        return
+
     logger.info("🔍 [定时任务] 开始信号发现")
 
     try:
@@ -46,7 +62,6 @@ async def signal_discovery_job():
             from models.article import Article
             from models.business_opportunity import BusinessOpportunity
             from services.signal_adapters import DatabaseArticleSignalAdapter
-            from services.smart_orchestrator import get_orchestrator
 
             orchestrator = get_orchestrator()
             adapter = DatabaseArticleSignalAdapter(db)

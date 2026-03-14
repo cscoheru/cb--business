@@ -181,8 +181,14 @@ async def get_opportunity(
 ):
     """获取商机详情"""
     try:
-        from sqlalchemy import cast
         from uuid import UUID
+        from sqlalchemy import select
+
+        # Parse the UUID string
+        try:
+            opportunity_uuid = UUID(opportunity_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid opportunity ID format")
 
         result = await db.execute(
             select(
@@ -203,7 +209,7 @@ async def get_opportunity(
                 BusinessOpportunity.archived_at,
                 BusinessOpportunity.archive_reason,
             ).where(
-                BusinessOpportunity.id == cast(opportunity_id, UUID)
+                BusinessOpportunity.id == opportunity_uuid
             )
         )
         row = result.first()

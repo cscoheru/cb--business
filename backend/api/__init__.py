@@ -31,7 +31,7 @@ from api.keywords import router as keywords_router
 from api.products_real import router as products_real_router
 from api.cards import router as cards_router
 from api.favorites import router as favorites_router
-from api.unified_favorites import router as unified_favorites_router
+# from api.unified_favorites import router as unified_favorites_router  # TODO: 部署后再启用
 from api.batch_operations import router as batch_operations_router
 from api.openclaw_integration import router as openclaw_router
 from api.notifications import router as notifications_router
@@ -147,7 +147,7 @@ app.include_router(social_router)
 app.include_router(keywords_router)
 app.include_router(cards_router)
 app.include_router(favorites_router)
-app.include_router(unified_favorites_router)  # ✅ 统一收藏API
+# app.include_router(unified_favorites_router)  # TODO: 部署后再启用
 
 # OpenClaw集成路由
 app.include_router(batch_operations_router)

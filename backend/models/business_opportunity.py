@@ -59,12 +59,6 @@ class BusinessOpportunity(Base):
     status = Column(SQLEnum(OpportunityStatus, values_callable=lambda x: [e.value for e in x]), nullable=False, default=OpportunityStatus.POTENTIAL, index=True)
     opportunity_type = Column(SQLEnum(OpportunityType, values_callable=lambda x: [e.value for e in x]), nullable=False, index=True)
 
-    # 关系（延迟加载）
-    from sqlalchemy.orm import relationship
-    card = relationship("Card", foreign_keys=[card_id], lazy='joined')
-    article = relationship("Article", foreign_keys=[article_id], lazy='joined')
-    user = relationship("User", foreign_keys=[user_id], lazy='joined')
-
     # 商机要素（多维度JSONB）
     # 结构: {product: {...}, region: {...}, platform: {...}, policy: {...}, brand: {...}, industry: {...}}
     elements = Column(JSONB, nullable=False, default=dict)
@@ -95,6 +89,12 @@ class BusinessOpportunity(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, index=True)
     archived_at = Column(DateTime(timezone=True))
     archive_reason = Column(String(500))
+
+    # 关系（必须在所有Column定义之后）
+    from sqlalchemy.orm import relationship
+    card = relationship("Card", foreign_keys=[card_id], lazy='joined')
+    article = relationship("Article", foreign_keys=[article_id], lazy='joined')
+    user = relationship("User", foreign_keys=[user_id], lazy='joined')
 
     # 索引
     __table_args__ = (

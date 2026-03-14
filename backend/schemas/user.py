@@ -27,6 +27,11 @@ class UserCreate(UserBase):
     password: str
 
 
+class UserCreateWithPlan(UserCreate):
+    """创建用户请求（含计划选择）"""
+    plan_choice: Optional[str] = "trial"  # 'free' or 'trial', default to trial
+
+
 class UserLogin(BaseModel):
     """用户登录请求"""
     email: EmailStr

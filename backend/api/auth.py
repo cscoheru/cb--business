@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from models.user import User, PlanTier, PlanStatus
 from models.subscription import Subscription
-from schemas.user import UserCreate, UserLogin, UserResponse, Token
+from schemas.user import UserCreate, UserCreateWithPlan, UserLogin, UserResponse, Token
 from utils.auth import verify_password, get_password_hash, create_access_token
 from api.dependencies import get_db
 from datetime import timedelta, datetime, timezone
@@ -17,11 +17,15 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 @router.post("/register", response_model=Token)
 async def register(
-    user_data: UserCreate,
+    user_data: UserCreateWithPlan,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    用户注册 - 新用户自动获得14天试用版
+    用户注册 - 支持选择计划类型
+
+    plan_choice选项:
+    - 'trial': 试用版（默认）- 14天完整功能体验
+    - 'free': 免费版 - 基础功能永久使用
 
     试用期包含:
     - 完整的 Pro 功能
@@ -38,41 +42,53 @@ async def register(
             detail="邮箱已被注册"
         )
 
-    # 计算试用期结束时间
-    trial_duration = get_trial_duration_days()
-    trial_ends_at = datetime.now(timezone.utc) + timedelta(days=trial_duration)
+    # 获取计划选择（默认试用版）
+    plan_choice = user_data.plan_choice or "trial"
 
-    # 创建新用户（默认试用版）
+    # 创建新用户
     new_user = User(
         id=uuid.uuid4(),
         email=user_data.email,
         name=user_data.name,
         password_hash=get_password_hash(user_data.password),
-        plan_tier=PlanTier.TRIAL,
+        plan_tier=PlanTier.FREE,  # 初始为free，下面根据plan_choice调整
         plan_status=PlanStatus.ACTIVE,
-        trial_ends_at=trial_ends_at
+        registration_plan_choice=plan_choice  # 记录用户注册时的选择
     )
 
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
+    # 根据用户选择设置计划
+    if plan_choice == "trial":
+        # 先将用户添加到session，再由TrialManager更新并提交
+        db.add(new_user)
+        # 使用TrialManager创建试用用户
+        from services.trial_manager import TrialManager
+        trial_manager = TrialManager(db)
+        new_user = await trial_manager.create_trial_subscription(new_user)
+        # TrialManager已经commit了，所以不需要再次commit
+    else:
+        # 免费用户，无需订阅记录
+        db.add(new_user)
+        await db.commit()
+        await db.refresh(new_user)
 
-    # 创建试用订阅记录
-    trial_subscription = Subscription(
-        id=uuid.uuid4(),
-        user_id=new_user.id,
-        plan_tier=PlanTier.TRIAL.value,
-        status="active",
-        billing_cycle=None,  # 试用期无计费周期
-        amount=0,
-        currency="CNY",
-        started_at=datetime.now(timezone.utc),
-        expires_at=trial_ends_at,
-        auto_renew=False,
-        payment_method=None
-    )
-    db.add(trial_subscription)
-    await db.commit()
+    # 创建试用订阅记录（仅试用用户）
+    if plan_choice == "trial":
+        trial_subscription = Subscription(
+            id=uuid.uuid4(),
+            user_id=new_user.id,
+            plan_tier=PlanTier.TRIAL.value,
+            status="active",
+            billing_cycle=None,  # 试用期无计费周期
+            amount=0,
+            currency="CNY",
+            started_at=datetime.now(timezone.utc),
+            expires_at=new_user.trial_ends_at,
+            auto_renew=False,
+            payment_method=None
+        )
+        db.add(trial_subscription)
+        await db.commit()
+        await db.refresh(new_user)
 
     # 生成访问令牌
     access_token = create_access_token(

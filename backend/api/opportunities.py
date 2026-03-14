@@ -277,3 +277,367 @@ async def get_score_distribution(
     except Exception as e:
         logger.error(f"获取评分分布失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# 智能商机跟踪系统 API (Smart Opportunity System)
+# ============================================================================
+
+from fastapi import Depends, BackgroundTasks
+from pydantic import BaseModel, Field
+from uuid import UUID
+from datetime import datetime
+
+from sqlalchemy import select, desc
+from config.database import AsyncSessionLocal, get_db
+from models.business_opportunity import (
+    BusinessOpportunity, DataCollectionTask,
+    OpportunityStatus, OpportunityType, TaskStatus, TaskPriority
+)
+
+
+# Request/Response Models
+class OpportunityDiscoveryRequest(BaseModel):
+    """商机发现请求"""
+    signal: Dict[str, Any] = Field(..., description="原始信号数据")
+    source: str = Field(default="manual", description="信号来源")
+    auto_collect: bool = Field(default=True, description="是否自动启动数据采集")
+
+
+class OpportunityUpdateRequest(BaseModel):
+    """商机更新请求"""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    elements: Optional[Dict[str, Any]] = None
+
+
+class UserFeedbackRequest(BaseModel):
+    """用户反馈请求"""
+    feedback: str = Field(..., description="用户反馈内容")
+    rating: Optional[int] = Field(None, ge=1, le=5, description="评分 1-5")
+
+
+class UserNotesRequest(BaseModel):
+    """用户笔记请求"""
+    notes: str = Field(..., description="用户笔记")
+
+
+async def start_data_collection(opportunity_id: UUID, data_requirements: List[Dict], db: AsyncSessionLocal):
+    """后台任务：启动数据采集"""
+    try:
+        # TODO: 实现OpenClaw客户端
+        # from services.openclaw_client import OpenClawClient
+        # client = OpenClawClient()
+
+        for req in data_requirements:
+            task = DataCollectionTask(
+                opportunity_id=opportunity_id,
+                task_type=req.get('data_needed', {}).get('type', 'generic'),
+                priority=TaskPriority(req.get('priority', 'medium')),
+                ai_request=req
+            )
+
+            db.add(task)
+            await db.commit()
+
+            # TODO: 提交给OpenClaw
+            # await client.submit_collection_task(str(task.id), req)
+
+            logger.info(f"📤 创建采集任务: {req.get('question', 'N/A')}")
+
+        # await client.close()
+
+    except Exception as e:
+        logger.error(f"数据采集启动失败: {e}")
+
+
+@router.post("/discover", response_model=Dict[str, Any])
+async def discover_opportunity(
+    request: OpportunityDiscoveryRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """
+    发现新商机
+
+    从原始信号中识别商机，创建BusinessOpportunity记录
+    """
+    try:
+        # 使用AI分析器分析信号
+        from services.ai_opportunity_analyzer import AIOpportunityAnalyzer
+        analyzer = AIOpportunityAnalyzer()
+        opportunity_data = await analyzer.analyze_signal(request.signal)
+
+        # 如果AI判断不是商机，返回提示
+        if not opportunity_data:
+            return {
+                'success': False,
+                'message': 'AI分析后判断此信号不是有价值的商机',
+                'opportunity': None
+            }
+
+        # 创建商机对象
+        opportunity = BusinessOpportunity(
+            title=opportunity_data.get('title'),
+            description=opportunity_data.get('description'),
+            opportunity_type=OpportunityType(opportunity_data.get('opportunity_type', 'product')),
+            status=OpportunityStatus.POTENTIAL,
+            elements=opportunity_data.get('elements', {}),
+            ai_insights=opportunity_data.get('ai_insights', {}),
+            confidence_score=opportunity_data.get('confidence_score', 0.5)
+        )
+
+        # 保存到数据库
+        db.add(opportunity)
+        await db.commit()
+        await db.refresh(opportunity)
+
+        logger.info(f"🎯 发现新商机: {opportunity.title} (置信度: {opportunity.confidence_score:.0%})")
+
+        # 如果有数据需求，后台启动验证
+        data_requirements = opportunity.ai_insights.get('data_requirements', [])
+        if data_requirements and request.auto_collect:
+            background_tasks.add_task(start_data_collection, opportunity.id, data_requirements, db)
+
+        return {
+            'success': True,
+            'opportunity': opportunity.to_dict(),
+            'message': f"发现{opportunity.opportunity_type.value}类型商机"
+        }
+
+    except Exception as e:
+        logger.error(f"商机发现失败: {e}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("", response_model=Dict[str, Any])
+async def list_opportunities(
+    status: Optional[str] = Query(None, description="按状态筛选"),
+    type: Optional[str] = Query(None, description="按类型筛选"),
+    min_confidence: Optional[float] = Query(None, ge=0, le=1, description="最低置信度"),
+    skip: int = Query(0, ge=0, description="跳过数量"),
+    limit: int = Query(20, ge=1, le=100, description="返回数量"),
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """获取商机列表"""
+    try:
+        # 构建查询
+        query = select(BusinessOpportunity).where(BusinessOpportunity.status != OpportunityStatus.ARCHIVED)
+
+        # 应用筛选
+        if status:
+            try:
+                status_enum = OpportunityStatus(status)
+                query = query.where(BusinessOpportunity.status == status_enum)
+            except ValueError:
+                pass
+
+        if type:
+            try:
+                type_enum = OpportunityType(type)
+                query = query.where(BusinessOpportunity.opportunity_type == type_enum)
+            except ValueError:
+                pass
+
+        if min_confidence is not None:
+            query = query.where(BusinessOpportunity.confidence_score >= min_confidence)
+
+        # 排序和分页
+        query = query.order_by(desc(BusinessOpportunity.created_at))
+        query = query.offset(skip).limit(limit)
+
+        result = await db.execute(query)
+        opportunities = result.scalars().all()
+
+        # 获取总数
+        count_query = select(BusinessOpportunity.id).where(BusinessOpportunity.status != OpportunityStatus.ARCHIVED)
+        total_result = await db.execute(count_query)
+        total = len(total_result.all())
+
+        return {
+            'success': True,
+            'total': total,
+            'count': len(opportunities),
+            'opportunities': [opp.to_dict() for opp in opportunities]
+        }
+
+    except Exception as e:
+        logger.error(f"获取商机列表失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/funnel", response_model=Dict[str, Any])
+async def get_opportunity_funnel(
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """获取商机漏斗数据"""
+    try:
+        funnel = {}
+
+        for status in OpportunityStatus:
+            result = await db.execute(
+                select(BusinessOpportunity).where(BusinessOpportunity.status == status)
+            )
+            opps = result.scalars().all()
+            count = len(opps)
+            avg_confidence = sum(opp.confidence_score for opp in opps) / len(opps) if opps else 0
+
+            funnel[status.value] = {
+                'count': count,
+                'avg_confidence': round(avg_confidence, 2)
+            }
+
+        return {
+            'success': True,
+            'funnel': funnel
+        }
+
+    except Exception as e:
+        logger.error(f"获取漏斗数据失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{opportunity_id}", response_model=Dict[str, Any])
+async def get_opportunity(
+    opportunity_id: str,
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """获取商机详情"""
+    try:
+        result = await db.execute(
+            select(BusinessOpportunity).where(BusinessOpportunity.id == opportunity_id)
+        )
+        opportunity = result.scalar_one_or_none()
+
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="商机不存在")
+
+        # 获取关联的数据采集任务
+        tasks_result = await db.execute(
+            select(DataCollectionTask)
+            .where(DataCollectionTask.opportunity_id == opportunity_id)
+            .order_by(DataCollectionTask.created_at.desc())
+        )
+        tasks = tasks_result.scalars().all()
+
+        return {
+            'success': True,
+            'opportunity': opportunity.to_dict(),
+            'data_collection_tasks': [task.to_dict() for task in tasks]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取商机详情失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{opportunity_id}/save", response_model=Dict[str, Any])
+async def toggle_save_opportunity(
+    opportunity_id: str,
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """收藏/取消收藏商机"""
+    try:
+        result = await db.execute(
+            select(BusinessOpportunity).where(BusinessOpportunity.id == opportunity_id)
+        )
+        opportunity = result.scalar_one_or_none()
+
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="商机不存在")
+
+        if not opportunity.user_interactions:
+            opportunity.user_interactions = {}
+
+        current_saved = opportunity.user_interactions.get('saved', False)
+        opportunity.user_interactions['saved'] = not current_saved
+
+        await db.commit()
+
+        return {
+            'success': True,
+            'saved': not current_saved,
+            'message': '已收藏' if not current_saved else '已取消收藏'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"收藏操作失败: {e}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{opportunity_id}/feedback", response_model=Dict[str, Any])
+async def submit_feedback(
+    opportunity_id: str,
+    request: UserFeedbackRequest,
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """提交用户反馈"""
+    try:
+        result = await db.execute(
+            select(BusinessOpportunity).where(BusinessOpportunity.id == opportunity_id)
+        )
+        opportunity = result.scalar_one_or_none()
+
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="商机不存在")
+
+        if not opportunity.user_interactions:
+            opportunity.user_interactions = {}
+
+        opportunity.user_interactions['feedback'] = request.feedback
+        if request.rating:
+            opportunity.user_interactions['rating'] = request.rating
+        opportunity.user_interactions['feedbacked_at'] = datetime.utcnow().isoformat()
+
+        await db.commit()
+
+        return {
+            'success': True,
+            'message': '反馈已提交'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"提交反馈失败: {e}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{opportunity_id}", response_model=Dict[str, Any])
+async def archive_opportunity(
+    opportunity_id: str,
+    reason: Optional[str] = Query(None, description="归档原因"),
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """归档商机"""
+    try:
+        result = await db.execute(
+            select(BusinessOpportunity).where(BusinessOpportunity.id == opportunity_id)
+        )
+        opportunity = result.scalar_one_or_none()
+
+        if not opportunity:
+            raise HTTPException(status_code=404, detail="商机不存在")
+
+        opportunity.transition_to(OpportunityStatus.ARCHIVED, reason)
+        await db.commit()
+
+        return {
+            'success': True,
+            'message': '商机已归档'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"归档商机失败: {e}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

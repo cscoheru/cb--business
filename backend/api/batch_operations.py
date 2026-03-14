@@ -260,8 +260,7 @@ async def batch_create_products(
                         "fetch_time": datetime.now().isoformat(),
                         "source": "openclaw_oxylabs"
                     },
-                    "is_published": True,
-                    "updated_at": datetime.now()
+                    "is_published": True
                 }
 
                 if existing_card:
@@ -274,7 +273,8 @@ async def batch_create_products(
                     new_card = Card(
                         category=category,
                         title=f"{category.replace('_', ' ').title()} Products",
-                        content_type="product_data",
+                        content={},  # Empty JSONB for content
+                        analysis={},  # Empty JSONB for analysis
                         **card_data,
                         created_at=datetime.now()
                     )

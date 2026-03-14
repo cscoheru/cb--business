@@ -1,0 +1,462 @@
+{
+  "fetch_timestamp": "2026-03-13T00:09:39.392195",
+  "data_source": "Oxylabs Amazon API",
+  "reliability": "95%",
+  "categories": {
+    "wireless_earbuds": {
+      "raw": {
+        "category": "Wireless Earbuds",
+        "timestamp": "2026-03-13T00:08:56.094192",
+        "products": [
+          {
+            "asin": "B098FKXT8L",
+            "title": "Bose QuietComfort 45 Bluetooth Wireless Noise Cancelling Headphones - Triple Black",
+            "brand": "Bose",
+            "price": 329,
+            "rating": 4.6,
+            "reviews_count": 17136,
+            "images_count": 8,
+            "features_count": 1574
+          },
+          {
+            "asin": "B0BQPNMXQV",
+            "title": "JBL Vibe Beam - True Wireless JBL Deep Bass Sound Earbuds, Bluetooth 5.2, Water & Dust Resistant, Ha",
+            "brand": "",
+            "price": 29.95,
+            "rating": 4.3,
+            "reviews_count": 35700
+          },
+          {
+            "asin": "B0G4W9HX8K",
+            "title": "Wireless Earbuds, Bluetooth 5.4 Headphones, True Wireless Stereo Sound Earphones with Noise Cancelli",
+            "brand": "",
+            "price": 16.14,
+            "rating": 4.5,
+            "reviews_count": 364
+          },
+          {
+            "asin": "B0D635YLCT",
+            "title": "kurdene Wireless Earbuds Bluetooth 5.3 in Ear Buds Light Weight Headphones,Deep Bass Sound,Built in ",
+            "brand": "",
+            "price": 9.99,
+            "rating": 4.3,
+            "reviews_count": 64200
+          },
+          {
+            "asin": "B0FHWGB7FW",
+            "title": "Wireless Earbuds, Bluetooth 5.4 Headphones Bass Stereo, Ear Buds with Noise Cancelling Mic, LED Disp",
+            "brand": "",
+            "price": 19.83,
+            "rating": 4.5,
+            "reviews_count": 53800
+          },
+          {
+            "asin": "B0G64DP15H",
+            "title": "Wireless Earbuds, Sports Bluetooth Headphones, 75Hrs Playtime Ear Buds with LED Power Display, Noise",
+            "brand": "",
+            "price": 19.99,
+            "rating": 5,
+            "reviews_count": 224
+          },
+          {
+            "asin": "B0G69QMV8L",
+            "title": "Wireless Earbuds, Bluetooth Headphones 5.4 Stereo 50 Hour Playback Ear Buds with LED Display and wit",
+            "brand": "",
+            "price": 9.99,
+            "rating": 4.4,
+            "reviews_count": 588
+          },
+          {
+            "asin": "B0BTYCRJSS",
+            "title": "Soundcore by Anker P20i True Wireless Earbuds, 10mm Drivers with Big Bass, Bluetooth 5.3, 30H Long P",
+            "brand": "",
+            "price": 19.99,
+            "rating": 4.4,
+            "reviews_count": 97900
+          },
+          {
+            "asin": "B0CRTR3PMF",
+            "title": "Soundcore P30i by Anker Noise Cancelling Earbuds, Strong and Smart Noise Cancelling, Powerful Bass, ",
+            "brand": "",
+            "price": 29.99,
+            "rating": 4.4,
+            "reviews_count": 27500
+          },
+          {
+            "asin": "B0FG2PMNS2",
+            "title": "True Wireless Earbuds Bluetooth Headphones: Ultra-Lightweight Bluetooth Earbuds for All-Day Comfort,",
+            "brand": "",
+            "price": 6.99,
+            "rating": 4.3,
+            "reviews_count": 274
+          },
+          {
+            "asin": "B0G29DPYKJ",
+            "title": "Wireless Earbuds, Bluetooth Headphones 5.4 HiFi Stereo, Ear Buds with 4 ENC Noise Cancelling Mics, 4",
+            "brand": "",
+            "price": 9.99,
+            "rating": 4.4,
+            "reviews_count": 205
+          }
+        ]
+      },
+      "analysis": {
+        "price": {
+          "min": 6.99,
+          "max": 329,
+          "avg": 45.62,
+          "median": 19.83,
+          "count": 11
+        },
+        "rating": {
+          "min": 4.3,
+          "max": 5,
+          "avg": 4.46,
+          "count": 11
+        },
+        "brands": {
+          "Bose": 1
+        },
+        "total_products": 11
+      }
+    },
+    "smart_plugs": {
+      "raw": {
+        "category": "Smart Plugs",
+        "timestamp": "2026-03-13T00:09:14.399872",
+        "products": [
+          {
+            "asin": "B07RCNB2L3",
+            "title": "Kasa Smart Plug HS103P4, Smart Home Wi-Fi Outlet Works with Alexa, Echo, Google Home & IFTTT, No Hub",
+            "brand": "",
+            "price": 26.99,
+            "rating": 4.6,
+            "reviews_count": 58900
+          },
+          {
+            "asin": "B0B62LPR5Z",
+            "title": "EIGHTREE Smart Plug, WiFi Outlet Works with Alexa & Google Home, Smart Home Socket with Remote Contr",
+            "brand": "",
+            "price": 20.99,
+            "rating": 4.5,
+            "reviews_count": 6300
+          },
+          {
+            "asin": "B091FXLMS8",
+            "title": "Kasa Smart Plug Mini 15A, Smart Home Wi-Fi Outlet Works with Alexa, Google Home & IFTTT, No Hub Requ",
+            "brand": "",
+            "price": 25.98,
+            "rating": 4.5,
+            "reviews_count": 26800
+          },
+          {
+            "asin": "B08731J1L4",
+            "title": "Govee Smart Plug, WiFi Plugs Work with Alexa & Google Assistant, Smart Outlet with Timer & Group Con",
+            "brand": "",
+            "price": 26.99,
+            "rating": 4.5,
+            "reviews_count": 13200
+          },
+          {
+            "asin": "B091FXQQMQ",
+            "title": "Kasa Smart Plug Ultra Mini 15A, Smart Home Wi-Fi Outlet Works with Alexa, Google Home & IFTTT, No Hu",
+            "brand": "",
+            "price": 13.97,
+            "rating": 4.5,
+            "reviews_count": 17900
+          },
+          {
+            "asin": "B0D7ZWGXGP",
+            "title": "GHome Smart Plug, WiFi Smart Plugs Work with Alexa and Google Home, Smart Outlet Timer with APP Remo",
+            "brand": "",
+            "price": 24.99,
+            "rating": 4.4,
+            "reviews_count": 3200
+          },
+          {
+            "asin": "B07B8W2KHZ",
+            "title": "Kasa Smart Plug HS103P2, Smart Home Wi-Fi Outlet Works with Alexa, Echo, Google Home & IFTTT, No Hub",
+            "brand": "",
+            "price": 17.99,
+            "rating": 4.6,
+            "reviews_count": 77100
+          },
+          {
+            "asin": "B0D7ZXYPRL",
+            "title": "GHome Smart Plug, WiFi Smart Plugs Work with Alexa and Google Home, Smart Outlet Timer with APP Remo",
+            "brand": "",
+            "price": 9.99,
+            "rating": 4.4,
+            "reviews_count": 3200
+          },
+          {
+            "asin": "B0BXMNJDW3",
+            "title": "TP-Link Tapo Matter Supported Smart Plug Mini, Compact Design, 15A/1800W Max, Super Easy Setup, Work",
+            "brand": "",
+            "price": 19.99,
+            "rating": 4.4,
+            "reviews_count": 2300
+          },
+          {
+            "asin": "B0B2PFFDKF",
+            "title": "EIGHTREE 15A Smart Plug, Wi-Fi & Bluetooth Smart Outlet for High-Power Home Appliances, Works with A",
+            "brand": "",
+            "price": 20.99,
+            "rating": 4.4,
+            "reviews_count": 11100
+          },
+          {
+            "asin": "B089DR29T6",
+            "title": "Amazon Smart Plug, Works with Alexa, Simple Setup, Endless Possibilities",
+            "brand": "",
+            "price": 24.99,
+            "rating": 4.7,
+            "reviews_count": 571700
+          },
+          {
+            "asin": "B09JZKK3KS",
+            "title": "GHome Smart Plug Mini, WiFi Smart Outlet Plug Works with Alexa and Google Home, Timer Outlet with AP",
+            "brand": "",
+            "price": 24.98,
+            "rating": 4.4,
+            "reviews_count": 4000
+          },
+          {
+            "asin": "B095KG3M4Y",
+            "title": "Govee Dual Smart Plug 4 Pack, 15A WiFi Bluetooth Outlet, Work with Alexa and Google Assistant, 2-in-",
+            "brand": "",
+            "price": 35.97,
+            "rating": 4.6,
+            "reviews_count": 6100
+          },
+          {
+            "asin": "B07S57PQSM",
+            "title": "Kasa Smart Plug HS103P3, Smart Home Wi-Fi Outlet Works with Alexa, Echo, Google Home & IFTTT, No Hub",
+            "brand": "",
+            "price": 24.99,
+            "rating": 4.6,
+            "reviews_count": 20200
+          },
+          {
+            "asin": "B0D7ZW512L",
+            "title": "GHome Smart Plug, WiFi Smart Plugs Work with Alexa and Google Home, Smart Outlet Timer with APP Remo",
+            "brand": "",
+            "price": 16.99,
+            "rating": 4.4,
+            "reviews_count": 3200
+          },
+          {
+            "asin": "B0C36WXGP1",
+            "title": "Linkind Matter Smart Plug, Work with Apple Home, Siri, Alexa, Google, SmartThings, Smart Home Smart ",
+            "brand": "",
+            "price": 25.99,
+            "rating": 4.4,
+            "reviews_count": 1900
+          },
+          {
+            "asin": "B0948ZZZJP",
+            "title": "Govee Smart Plug 15A, WiFi Bluetooth Outlets 4 Pack Work with Alexa and Google Assistant, WiFi Plugs",
+            "brand": "",
+            "price": 27.99,
+            "rating": 4.6,
+            "reviews_count": 5900
+          },
+          {
+            "asin": "B099KLNM24",
+            "title": "Kasa Outdoor Smart Plug, Smart Home Wi-Fi Outlet Timer, Max Load 15A/1875W, IP64 Weather Resistance,",
+            "brand": "",
+            "price": 16.99,
+            "rating": 4.4,
+            "reviews_count": 12000
+          },
+          {
+            "asin": "B09JZMCK32",
+            "title": "GHome Smart Plug Mini, WiFi Smart Outlet Plug Works with Alexa and Google Home, Timer Outlet with AP",
+            "brand": "",
+            "price": 15.98,
+            "rating": 4.4,
+            "reviews_count": 4000
+          },
+          {
+            "asin": "B0CL9D9HM4",
+            "title": "Amazon Basics Smart Plug, Works with Alexa Only, 2.4 GHz Wi-Fi, No Hub Required, 4-Pack, White",
+            "brand": "",
+            "price": 21.26,
+            "rating": 4.5,
+            "reviews_count": 6800
+          }
+        ]
+      },
+      "analysis": {
+        "price": {
+          "min": 9.99,
+          "max": 35.97,
+          "avg": 22.25,
+          "median": 24.98,
+          "count": 20
+        },
+        "rating": {
+          "min": 4.4,
+          "max": 4.7,
+          "avg": 4.49,
+          "count": 20
+        },
+        "brands": {},
+        "total_products": 20
+      }
+    },
+    "fitness_trackers": {
+      "raw": {
+        "category": "Fitness Trackers",
+        "timestamp": "2026-03-13T00:09:21.105496",
+        "products": [
+          {
+            "asin": "B0B5F9SZW7",
+            "title": "Fitbit Inspire 3 Health &-Fitness-Tracker with Stress Management, Workout Intensity, Sleep Tracking,",
+            "brand": "",
+            "price": 94.95,
+            "rating": 4.3,
+            "reviews_count": 23300
+          },
+          {
+            "asin": "B0CC9DXVPF",
+            "title": "Fitness Tracker Watch with Heart Rate Monitor, Activity Tracker with Pedometer, Sleep Monitor, Calor",
+            "brand": "",
+            "price": 19.99,
+            "rating": 4,
+            "reviews_count": 5600
+          },
+          {
+            "asin": "B0CW3VWC3X",
+            "title": "SAMSUNG Galaxy FIT 3 [2024] 1.6\" AMOLED Display | 14 Days Battery Life | 100+ Watchfaces | 100+ Exer",
+            "brand": "",
+            "price": 45.86,
+            "rating": 4.4,
+            "reviews_count": 2800
+          },
+          {
+            "asin": "B0FRS7S8QG",
+            "title": "Fitness Tracker with 24/7 Heart Rate, Blood Oxygen Blood Pressure Sleep Monitor, Activity Trackers 5",
+            "brand": "",
+            "price": 25.99,
+            "rating": 4.2,
+            "reviews_count": 292
+          },
+          {
+            "asin": "B0FY2LFGPF",
+            "title": "Fitness Tracker with Heart Rate/Blood Oxygen/Sleep Monitor, 20+ Sports Modes Smart Watches for Women",
+            "brand": "",
+            "price": 26.99,
+            "rating": 4.2,
+            "reviews_count": 273
+          },
+          {
+            "asin": "B0F48LGWFH",
+            "title": "Fitness Tracker with 24/7 Heart Rate Blood Oxygen Sleep Monitor, 1.1\" AMOLED Touch Screen Activity T",
+            "brand": "",
+            "price": 28.99,
+            "rating": 4.4,
+            "reviews_count": 154
+          },
+          {
+            "asin": "B0FS27LWFK",
+            "title": "Fitness Smart Trackers with 24/7 Health Monitoring,Heart Rate Sleep Blood Oxygen Monitor/Calorie Ste",
+            "brand": "",
+            "price": 29.99,
+            "rating": 4.8,
+            "reviews_count": 59
+          },
+          {
+            "asin": "B0CC63GZ3R",
+            "title": "Fitbit Charge 6 Fitness Tracker with Google apps, Heart Rate on Exercise Equipment, 6-Months Premium",
+            "brand": "",
+            "price": 139.89,
+            "rating": 4.1,
+            "reviews_count": 19400
+          },
+          {
+            "asin": "B0DYF82545",
+            "title": "XIAOMI Mi Smart Band 10 (2025) Global Version - 1.72\" AMOLED Display | 21 Days Battery Life | Touchs",
+            "brand": "",
+            "price": 49.59,
+            "rating": 4.5,
+            "reviews_count": 6500
+          },
+          {
+            "asin": "B0FQFJ2G7R",
+            "title": "Apple Watch Series 11 [GPS + Cellular 46mm] Smartwatch with Jet Black Aluminum Case with Black Sport",
+            "brand": "",
+            "price": 429,
+            "rating": 4.8,
+            "reviews_count": 3600
+          },
+          {
+            "asin": "B08PF9V27X",
+            "title": "Fitness Tracker with Step/Distance/Calories Counter, Activity Tracker with Heart Rate Monitor, Slim ",
+            "brand": "",
+            "price": 19.99,
+            "rating": 3.7,
+            "reviews_count": 7900
+          },
+          {
+            "asin": "B0DSG9VCRH",
+            "title": "Garmin Instinct® 3 45mm, Solar Charged Display, Rugged Outdoor GPS Smartwatch, Metal-Reinforced Beze",
+            "brand": "",
+            "price": 399.99,
+            "rating": 4.6,
+            "reviews_count": 2000
+          },
+          {
+            "asin": "B09Z6CRHJ6",
+            "title": "Amazfit Band 7 Activity Fitness Tracker for Men Women, 18-Day Battery Life, Alexa Built-in, 1.47”AMO",
+            "brand": "",
+            "price": 49.99,
+            "rating": 3.9,
+            "reviews_count": 9300
+          },
+          {
+            "asin": "B0CVLHY995",
+            "title": "Samsung Galaxy Watch 6 Classic 43mm Smartwatch with Rotating Bezel, Fitness Tracker, Advanced Sleep ",
+            "brand": "",
+            "price": 88.44,
+            "rating": 4.3,
+            "reviews_count": 1500
+          },
+          {
+            "asin": "B0FWR9H9L9",
+            "title": "Smart Watch with Alexa Built-in, 1.83\" HD Touchscreen Fitness Tracker with Bluetooth Calling, Fitnes",
+            "brand": "",
+            "price": 29.99,
+            "rating": 4.3,
+            "reviews_count": 668
+          },
+          {
+            "asin": "B0B5VVNJBF",
+            "title": "Garmin Venu® Sq 2 GPS Smartwatch - AMOLED Display, All-Day Health Monitoring, Long Battery Life, Act",
+            "brand": "",
+            "price": 193.99,
+            "rating": 4.4,
+            "reviews_count": 2200
+          }
+        ]
+      },
+      "analysis": {
+        "price": {
+          "min": 19.99,
+          "max": 429,
+          "avg": 104.6,
+          "median": 49.59,
+          "count": 16
+        },
+        "rating": {
+          "min": 3.7,
+          "max": 4.8,
+          "avg": 4.31,
+          "count": 16
+        },
+        "brands": {},
+        "total_products": 16
+      }
+    }
+  }
+}

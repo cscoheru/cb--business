@@ -1,13 +1,17 @@
 # api/products_real.py
-"""真实产品数据 API - 使用 Oxylabs 获取 Amazon 产品数据"""
-from fastapi import APIRouter, Query
-from typing import List, Dict, Any
+"""真实产品数据 API - 优先从 Cards 表读取，回退到 Oxylabs"""
+from fastapi import APIRouter, Query, Depends
+from typing import List, Dict, Any, Optional
 import logging
 from datetime import datetime, timedelta
 import asyncio
 
+from sqlalchemy import select, desc
+from config.database import AsyncSessionLocal, get_db
+from models.card import Card
 from crawler.products.oxylabs_client import OxylabsClient
 from config.redis import redis_client
+from services.product_data_service import get_product_data_service
 
 router = APIRouter(prefix="/api/v1/products", tags=["products"])
 logger = logging.getLogger(__name__)
@@ -74,6 +78,37 @@ AMAZON_CATEGORIES = {
 }
 
 
+# Category mapping: Frontend broad categories → Cards table specific categories
+# This maps user-facing categories to the actual categories stored in the cards table
+CATEGORY_MAPPING = {
+    "electronics": [
+        "wireless_earbuds", "bluetooth_speakers", "phone_chargers",
+        "desk_lamps", "webcams", "keyboards", "mouse"
+    ],
+    "home": [
+        "smart_plugs", "coffee_makers", "desk_lamps"
+    ],
+    "sports": [
+        "fitness_trackers", "yoga_mats"
+    ],
+    "fashion": [
+        "phone_cases"
+    ],
+    # Additional category mappings for future data collection
+    "beauty": [
+        "makeup", "skincare", "hair_care", "fragrances"
+    ],
+    "food": [
+        "groceries", "snacks", "beverages", "kitchen_supplies"
+    ],
+    "baby": [
+        "baby_care", "diapers", "baby_formula", "baby_gear"
+    ],
+    "pets": [
+        "pet_supplies", "dog_food", "cat_food", "pet_toys"
+    ],
+}
+
 
 # 简单内存缓存（用于存储分类产品数量）
 _category_count_cache: Dict[str, Dict[str, Any]] = {}
@@ -99,6 +134,243 @@ async def _set_cached_category_count(category_id: str, count: int):
     cache_key = f"category_count:{category_id}"
     _category_count_cache[cache_key] = {"count": count}
     _cache_timestamps[cache_key] = datetime.now()
+
+
+async def _fetch_products_from_cards(
+    category_id: str,
+    limit: int,
+    db: AsyncSessionLocal,
+    fetch_details: bool = False
+) -> Dict[str, Any]:
+    """
+    从 Cards 表读取产品数据（主要数据源）
+
+    Args:
+        category_id: 前端分类ID (electronics, home, sports等)
+        limit: 返回数量限制
+        db: 数据库会话
+        fetch_details: 是否获取完整产品详情 (brand, image等)
+
+    Returns:
+        包含产品的字典，如果未找到数据则返回None
+    """
+    # 如果需要完整详情，使用 ProductDataService
+    if fetch_details:
+        try:
+            service = get_product_data_service()
+            products = await service.get_products_with_details(
+                category_id=category_id,
+                category_mapping=CATEGORY_MAPPING,
+                limit=limit,
+                db=db
+            )
+
+            if products:
+                logger.info(f"Retrieved {len(products)} products with details for {category_id}")
+                return {
+                    "category": category_id,
+                    "category_name": AMAZON_CATEGORIES.get(category_id, {}).get("name", category_id),
+                    "products": products,
+                    "count": len(products),
+                    "data_source": "cards_table_with_details"
+                }
+        except Exception as e:
+            logger.warning(f"Failed to fetch products with details: {e}")
+            # 继续使用普通方法
+
+    # 普通方法：只从 cards 表读取缓存数据
+    mapped_categories = CATEGORY_MAPPING.get(category_id, [])
+
+    if not mapped_categories:
+        logger.debug(f"No mapped categories for {category_id}, will use Oxylabs fallback")
+        return None
+
+    # 从所有映射的类别中获取最新的卡片
+    results = []
+    for card_category in mapped_categories:
+        try:
+            card_result = await db.execute(
+                select(Card)
+                .where(Card.category == card_category)
+                .where(Card.amazon_data.isnot(None))
+                .where(Card.is_published == True)
+                .order_by(desc(Card.created_at))
+                .limit(1)
+            )
+            card = card_result.scalar_one_or_none()
+
+            if card and card.amazon_data:
+                products = card.amazon_data.get("products", [])
+                if products:
+                    results.extend(products)
+                    logger.debug(f"Found {len(products)} products in card category {card_category}")
+        except Exception as e:
+            logger.warning(f"Error reading cards for {card_category}: {e}")
+            continue
+
+    if not results:
+        logger.debug(f"No products found in cards for {category_id}")
+        return None
+
+    # 格式化产品数据
+    formatted_products = []
+    for product in results[:limit]:
+        if not product or not isinstance(product, dict):
+            continue
+
+        # 处理品牌字段
+        brand = product.get("brand") or product.get("manufacturer") or "N/A"
+
+        # 处理价格
+        price = product.get("price")
+        if isinstance(price, (int, float)):
+            price = float(price)
+        else:
+            price = None
+
+        # 处理评分
+        rating = product.get("rating")
+        if isinstance(rating, (int, float)):
+            rating = float(rating)
+        else:
+            rating = None
+
+        # 处理评论数
+        reviews_count = product.get("reviews_count", 0)
+        if isinstance(reviews_count, str):
+            reviews_count = 0
+        elif not isinstance(reviews_count, int):
+            reviews_count = 0
+
+        # 构建产品URL
+        url = product.get("url")
+        if url and not url.startswith("http"):
+            url = f"https://www.amazon.com{url}"
+        elif not url:
+            url = f"https://www.amazon.com/dp/{product.get('asin', '')}"
+
+        formatted_products.append({
+            "asin": product.get("asin", ""),
+            "title": product.get("title", "N/A"),
+            "brand": brand,
+            "price": price,
+            "rating": rating,
+            "reviews_count": reviews_count,
+            "image": product.get("image"),  # Cards数据可能包含图片
+            "url": url,
+            "source": "cards_cache"  # 标记数据来源
+        })
+
+    logger.info(f"Returning {len(formatted_products)} products from cards for {category_id}")
+    return {
+        "category": category_id,
+        "category_name": AMAZON_CATEGORIES.get(category_id, {}).get("name", category_id),
+        "products": formatted_products,
+        "count": len(formatted_products),
+        "data_source": "cards_table"
+    }
+
+
+async def _fetch_products_from_oxylabs(
+    category_id: str,
+    amazon_path: str,
+    limit: int
+) -> Dict[str, Any]:
+    """
+    从 Oxylabs API 获取产品数据（回退数据源）
+
+    Args:
+        category_id: 分类ID
+        amazon_path: Amazon分类路径
+        limit: 返回数量限制
+
+    Returns:
+        包含产品的字典
+    """
+    try:
+        client = OxylabsClient()
+
+        products = await client.get_amazon_bestsellers(
+            category=amazon_path,
+            domain="com",
+            limit=limit
+        )
+
+        await client.close()
+
+        logger.debug(f"Oxylabs returned {len(products)} products for {category_id}")
+
+        # 转换为统一格式
+        formatted_products = []
+        for i, product in enumerate(products[:limit]):
+            if not product or not isinstance(product, dict):
+                logger.warning(f"Skipping invalid product at index {i}: {type(product)}")
+                continue
+
+            try:
+                brand = product.get("brand") or product.get("manufacturer") or "N/A"
+                price = product.get("price")
+                if isinstance(price, (int, float)):
+                    price = float(price)
+                else:
+                    price = None
+
+                rating = product.get("rating")
+                if isinstance(rating, (int, float)):
+                    rating = float(rating)
+                else:
+                    rating = None
+
+                reviews_count = product.get("reviews_count", 0)
+                if isinstance(reviews_count, str):
+                    reviews_count = 0
+                elif not isinstance(reviews_count, int):
+                    reviews_count = 0
+
+                # 构建产品URL
+                url = product.get("url")
+                if not url:
+                    # 如果没有url字段，使用asin构建
+                    asin = product.get("asin", "")
+                    url = f"https://www.amazon.com/dp/{asin}" if asin else None
+                elif not url.startswith("http"):
+                    url = f"https://www.amazon.com{url}"
+
+                formatted_products.append({
+                    "asin": product.get("asin", ""),
+                    "title": product.get("title", "N/A"),
+                    "brand": brand,
+                    "price": price,
+                    "rating": rating,
+                    "reviews_count": reviews_count,
+                    "image": None,
+                    "url": url,
+                    "source": "oxylabs_api"
+                })
+            except Exception as e:
+                logger.warning(f"Error formatting product {i}: {e}")
+                continue
+
+        logger.info(f"Fetched {len(formatted_products)} products from Oxylabs for {category_id}")
+        return {
+            "category": category_id,
+            "category_name": AMAZON_CATEGORIES.get(category_id, {}).get("name", category_id),
+            "products": formatted_products,
+            "count": len(formatted_products),
+            "data_source": "oxylabs_api"
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to fetch from Oxylabs for {category_id}: {e}")
+        return {
+            "category": category_id,
+            "category_name": AMAZON_CATEGORIES.get(category_id, {}).get("name", category_id),
+            "products": [],
+            "count": 0,
+            "data_source": "error",
+            "error": str(e)
+        }
+
 
 
 async def _fetch_amazon_category_count(category_id: str, amazon_path: str) -> int:
@@ -195,87 +467,47 @@ async def get_categories():
 @router.get("/categories/{category_id}/trending")
 async def get_category_trending(
     category_id: str,
-    limit: int = Query(10, ge=1, le=50)
+    limit: int = Query(10, ge=1, le=50),
+    fetch_details: bool = Query(False, description="是否获取完整产品详情 (brand, image等)"),
+    db: AsyncSessionLocal = Depends(get_db)
 ):
-    """获取指定类别的热门产品（使用 Oxylabs）"""
+    """
+    获取指定类别的热门产品
 
+    数据源策略（优先级顺序）:
+    1. Cards表 (已缓存的产品数据)
+    2. Oxylabs API (实时API调用)
+
+    Args:
+        category_id: 产品类别ID (electronics, beauty, home等)
+        limit: 返回数量限制
+        fetch_details: 是否获取完整产品详情 (包含brand, image等字段)
+        db: 数据库会话
+
+    Returns:
+        产品列表，包含来源标记
+    """
     if category_id not in AMAZON_CATEGORIES:
         return {"error": "Invalid category", "products": []}
 
     cat_info = AMAZON_CATEGORIES[category_id]
 
-    try:
-        client = OxylabsClient()
+    # Step 1: 尝试从 Cards 表读取
+    cards_result = await _fetch_products_from_cards(category_id, limit, db, fetch_details)
 
-        # 获取 Amazon Best Sellers
-        products = await client.get_amazon_bestsellers(
-            category=cat_info["amazon_path"],
-            domain="com",
-            limit=limit
-        )
+    if cards_result and cards_result["count"] > 0:
+        logger.info(f"Using cards data for {category_id} (details={fetch_details})")
+        return cards_result
 
-        await client.close()
+    # Step 2: 回退到 Oxylabs API
+    logger.info(f"Falling back to Oxylabs API for {category_id}")
+    oxylabs_result = await _fetch_products_from_oxylabs(
+        category_id,
+        cat_info["amazon_path"],
+        limit
+    )
 
-        # 转换为统一格式
-        formatted_products = []
-        for product in products[:limit]:
-            if not product or not isinstance(product, dict):
-                continue
-
-            # 处理品牌字段 - 搜索API返回 manufacturer 而不是 brand
-            brand = product.get("brand") or product.get("manufacturer") or "N/A"
-
-            # 处理价格 - 可能是数字或字符串
-            price = product.get("price")
-            if isinstance(price, (int, float)):
-                price = float(price)
-            else:
-                price = None
-
-            # 处理评分
-            rating = product.get("rating")
-            if isinstance(rating, (int, float)):
-                rating = float(rating)
-            else:
-                rating = None
-
-            # 处理评论数
-            reviews_count = product.get("reviews_count", 0)
-            if isinstance(reviews_count, str):
-                # 处理 "10K+" 这样的格式
-                reviews_count = 0
-            elif not isinstance(reviews_count, int):
-                reviews_count = 0
-
-            # 构建产品URL
-            url = product.get("url")
-            if url and not url.startswith("http"):
-                # 相对URL转绝对URL
-                url = f"https://www.amazon.com{url}"
-            else:
-                url = f"https://www.amazon.com/dp/{product.get('asin', '')}"
-
-            formatted_products.append({
-                "asin": product.get("asin", ""),
-                "title": product.get("title", "N/A"),
-                "brand": brand,
-                "price": price,
-                "rating": rating,
-                "reviews_count": reviews_count,
-                "image": None,  # 搜索API不返回图片，后续可通过产品详情API获取
-                "url": url
-            })
-
-        return {
-            "category": category_id,
-            "category_name": cat_info["name"],
-            "products": formatted_products,
-            "count": len(formatted_products)
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to fetch trending products for {category_id}: {e}")
-        return {"error": str(e), "products": []}
+    return oxylabs_result
 
 
 @router.get("/search")
@@ -361,89 +593,36 @@ async def search_products(
 async def get_trending_products(
     category: str = Query("electronics", description="产品类别"),
     limit: int = Query(20, ge=1, le=50),
-    force_refresh: bool = Query(False, description="强制刷新缓存")
+    force_refresh: bool = Query(False, description="强制刷新缓存"),
+    fetch_details: bool = Query(False, description="是否获取完整产品详情"),
+    db: AsyncSessionLocal = Depends(get_db)
 ):
     """
     获取热门产品列表 - 前端兼容接口
 
     支持的类别: electronics, beauty, home, fashion, food, baby, sports, pets
-    重定向到 categories/{category_id}/trending 端点
+
+    数据源策略（优先级顺序）:
+    1. Cards表 (已缓存的产品数据)
+    2. Oxylabs API (实时API调用)
     """
     if category not in AMAZON_CATEGORIES:
         return {"category": category, "products": [], "count": 0}
 
-    # 使用 OxylabsClient 获取 Amazon Best Sellers
-    try:
-        from crawler.products.oxylabs_client import OxylabsClient
+    # 如果不强制刷新，先尝试从 Cards 表读取
+    if not force_refresh:
+        cards_result = await _fetch_products_from_cards(category, limit, db, fetch_details)
+        if cards_result and cards_result["count"] > 0:
+            return cards_result
 
-        client = OxylabsClient()
+    # 回退到 Oxylabs API
+    oxylabs_result = await _fetch_products_from_oxylabs(
+        category,
+        AMAZON_CATEGORIES[category]["amazon_path"],
+        limit
+    )
 
-        products = await client.get_amazon_bestsellers(
-            category=AMAZON_CATEGORIES[category]["amazon_path"],
-            domain="com",
-            limit=limit
-        )
-
-        await client.close()
-
-        # 转换为统一格式（添加fetched_at字段）
-        formatted_products = []
-        for product in products[:limit]:
-            if not product or not isinstance(product, dict):
-                continue
-
-            # 处理品牌字段
-            brand = product.get("brand") or product.get("manufacturer") or "N/A"
-
-            # 处理价格
-            price = product.get("price")
-            if isinstance(price, (int, float)):
-                price = float(price)
-            else:
-                price = None
-
-            # 处理评分
-            rating = product.get("rating")
-            if isinstance(rating, (int, float)):
-                rating = float(rating)
-            else:
-                rating = None
-
-            # 处理评论数
-            reviews_count = product.get("reviews_count", 0)
-            if isinstance(reviews_count, str):
-                reviews_count = 0
-            elif not isinstance(reviews_count, int):
-                reviews_count = 0
-
-            # 构建产品URL
-            url = product.get("url")
-            if url and not url.startswith("http"):
-                url = f"https://www.amazon.com{url}"
-            else:
-                url = f"https://www.amazon.com/dp/{product.get('asin', '')}"
-
-            formatted_products.append({
-                "asin": product.get("asin", ""),
-                "title": product.get("title", "N/A"),
-                "brand": brand,
-                "price": price,
-                "rating": rating,
-                "reviews_count": reviews_count,
-                "image": None,  # 搜索API不返回图片
-                "url": url,
-                "fetched_at": product.get("fetched_at") or None
-            })
-
-        return {
-            "category": category,
-            "products": formatted_products,
-            "count": len(formatted_products)
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to fetch trending products: {e}")
-        return {"category": category, "products": [], "count": 0, "error": str(e)}
+    return oxylabs_result
 
 
 @router.get("/platforms")

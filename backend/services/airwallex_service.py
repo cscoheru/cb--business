@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 import uuid
 import httpx
+from dateutil import parser
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,8 @@ class AirwallexConfig:
 
     # API Keys (set in environment variables)
     API_KEY = os.getenv("AIRWALLEX_API_KEY", "94cccd73cbc3cd1252a47039f3cadbcf011faa9b924aa589f0adb095dc2fb3fe5cff850b297e72024fd1383aef7a4dd0")
-    SCOPED_API_KEY = os.getenv("AIRWALLEX_SCOPED_API_KEY", "")  # For frontend only
+    SCOPED_API_KEY = os.getenv("AIRWALLEX_SCOPED_API_KEY", "5d407acf3dfa6535f89cb5dc0b8f1a4c97037fa64c54d67544fd6371b8b0e4618e09c6d8a34ff6cfb3069d4aade80e57")
+    CLIENT_ID = os.getenv("AIRWALLEX_CLIENT_ID", "IX_3QtmsQn2k8lKOEZGDWw")  # Required for Scoped API Key authentication
     API_BASE_URL = os.getenv("AIRWALLEX_API_URL", "https://api.airwallex.com")
 
     # Account & Organization IDs
@@ -59,32 +61,119 @@ class AirwallexService:
     """Airwallex Payment Service"""
 
     def __init__(self):
-        # Use scoped API key if available, otherwise fall back to regular API key
-        self.api_key = AirwallexConfig.SCOPED_API_KEY or AirwallexConfig.API_KEY
+        self.api_key = AirwallexConfig.API_KEY
+        self.scoped_api_key = AirwallexConfig.SCOPED_API_KEY
+        self.client_id = AirwallexConfig.CLIENT_ID
         self.base_url = AirwallexConfig.API_BASE_URL
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
+        self._access_token = None
+        self._token_expires_at = None
+
+        # Use two-step auth if we have Scoped API Key + Client ID
+        self.use_scoped_auth = bool(self.scoped_api_key and self.client_id)
+
+        if self.use_scoped_auth:
+            logger.info("Using Airwallex Scoped API Key with two-step authentication")
+        else:
+            logger.info("Using Airwallex Admin API Key (requires Client ID for full functionality)")
+
+    async def _get_access_token(self) -> str:
+        """
+        Obtain access token using Scoped API Key and Client ID
+
+        Returns:
+            Access token string
+        """
+        if self._access_token and self._token_expires_at:
+            # Check if token is still valid (with 5 min buffer)
+            # Use utcnow() to compare with UTC datetime
+            from datetime import timezone
+            now_utc = datetime.now(timezone.utc)
+            if now_utc < self._token_expires_at - timedelta(minutes=5):
+                return self._access_token
+
+        # Need to obtain new token
+        headers = {
+            "x-api-key": self.scoped_api_key,
+            "x-client-id": self.client_id,
             "Content-Type": "application/json"
         }
-        # Log which key type is being used (for debugging)
-        if AirwallexConfig.SCOPED_API_KEY:
-            logger.info("Using Airwallex Scoped API Key")
+
+        # If using account-level access, include x-login-as
+        if AirwallexConfig.ACCOUNT_ID:
+            headers["x-login-as"] = AirwallexConfig.ACCOUNT_ID
+
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    f"{self.base_url}/api/v1/authentication/login",
+                    headers=headers,
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                self._access_token = data.get("token")
+                expires_at_str = data.get("expires_at")
+                if expires_at_str:
+                    # Parse ISO 8601 datetime (already timezone-aware from dateutil parser)
+                    from dateutil import parser
+                    self._token_expires_at = parser.isoparse(expires_at_str)
+
+                logger.info(f"Obtained Airwallex access token, expires at: {expires_at_str}")
+                return self._access_token
+
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Failed to obtain access token: {e.response.status_code} - {e.response.text}")
+                raise AirwallexError(
+                    message="Failed to obtain access token",
+                    code="AUTH_FAILED",
+                    details={"status": e.response.status_code, "body": e.response.text}
+                )
+            except Exception as e:
+                logger.error(f"Unexpected error obtaining access token: {e}")
+                raise
+
+    async def _get_auth_headers(self) -> Dict[str, str]:
+        """
+        Get authentication headers for API requests
+
+        Returns:
+            Dictionary with Authorization header
+        """
+        if self.use_scoped_auth:
+            token = await self._get_access_token()
+            return {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+        else:
+            # Fallback to using API key directly (may not work for all endpoints)
+            return {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
 
     async def _make_request(
         self,
         method: str,
         endpoint: str,
-        data: Optional[Dict] = None
+        data: Optional[Dict] = None,
+        headers: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """Make API request to Airwallex"""
         url = f"{self.base_url}{endpoint}"
 
+        # Get auth headers
+        auth_headers = await self._get_auth_headers()
+        if headers:
+            auth_headers.update(headers)
+
         async with httpx.AsyncClient() as client:
             try:
                 if method.upper() == "GET":
-                    response = await client.get(url, headers=self.headers, timeout=30.0)
+                    response = await client.get(url, headers=auth_headers, timeout=30.0)
                 elif method.upper() == "POST":
-                    response = await client.post(url, json=data, headers=self.headers, timeout=30.0)
+                    response = await client.post(url, json=data, headers=auth_headers, timeout=30.0)
                 else:
                     raise AirwallexError(f"Unsupported method: {method}")
 
@@ -140,9 +229,10 @@ class AirwallexService:
 
         # Prepare payment intent request
         payload = {
+            "request_id": request_id,  # Required for Airwallex API
             "amount": str(amount_minor),
             "currency": AirwallexConfig.CURRENCY,
-            "merchant_order_id": request_id,
+            "merchant_order_id": f"order_{user_id}_{int(datetime.now().timestamp())}",
             "description": description,
             "return_url": return_url or "https://www.zenconsult.top/billing?success=true",
             "customer": {
@@ -165,7 +255,7 @@ class AirwallexService:
         try:
             result = await self._make_request(
                 "POST",
-                "/v1/pa/payment_intents",
+                "/api/v1/pa/payment_intents/create",
                 data=payload
             )
 
@@ -201,7 +291,7 @@ class AirwallexService:
         try:
             result = await self._make_request(
                 "GET",
-                f"/v1/pa/payment_intents/{payment_intent_id}"
+                f"/api/v1/pa/payment_intents/{payment_intent_id}"
             )
 
             return {
@@ -224,31 +314,27 @@ class AirwallexService:
         """
         Get customer details from Airwallex
 
+        Note: The customers API endpoint may not be available.
+        Customer details should be passed directly in the payment intent.
+
         Args:
-            customer_id: Airwallex customer ID (e.g., IX_3QtmsQn2k8lKOEZGDWw)
+            customer_id: Airwallex customer ID
 
         Returns:
-            Customer details
+            Customer details (basic info)
         """
-        try:
-            result = await self._make_request(
-                "GET",
-                f"/v1/pa/customers/{customer_id}"
-            )
-
-            return {
-                "id": result.get("id"),
-                "merchant_customer_id": result.get("merchant_customer_id"),
-                "email": result.get("email"),
-                "name": result.get("name"),
-                "phone_number": result.get("phone_number"),
-                "created_at": result.get("created_at"),
-                "deleted_at": result.get("deleted_at")
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to get customer {customer_id}: {e}")
-            raise
+        # Note: The /api/v1/pa/customers endpoint returns 404
+        # Customer management is done through payment intents
+        logger.warning(f"get_customer called but customer API not available. ID: {customer_id}")
+        return {
+            "id": customer_id,
+            "merchant_customer_id": None,
+            "email": None,
+            "name": None,
+            "phone_number": None,
+            "created_at": None,
+            "deleted_at": None
+        }
 
     async def create_customer(
         self,
@@ -259,6 +345,9 @@ class AirwallexService:
         """
         Create or retrieve customer in Airwallex
 
+        Note: The customers API endpoint may not be available.
+        Customer details are passed directly in the payment intent instead.
+
         Args:
             user_id: User ID from database
             email: Customer email
@@ -267,44 +356,16 @@ class AirwallexService:
         Returns:
             Customer details with merchant_customer_id
         """
-        payload = {
+        # Note: Customer creation through API may not be available
+        # Customer details are included in payment intent payload
+        logger.info(f"Customer details will be included in payment intent: user_id={user_id}, email={email}")
+
+        return {
+            "id": user_id,  # Use user_id as customer reference
             "merchant_customer_id": user_id,
             "email": email,
-            "name": name or email,
-            "phone_number": "",
-            "date_of_birth": None,
-            "address": {
-                "country_code": "CN",
-                "state": "",
-                "suburb": "",
-                "line_1": "",
-                "line_2": "",
-                "postcode": ""
-            },
-            "metadata": {
-                "user_id": user_id
-            }
+            "name": name or email
         }
-
-        try:
-            result = await self._make_request(
-                "POST",
-                "/v1/pa/customers",
-                data=payload
-            )
-
-            logger.info(f"Created/retrieved Airwallex customer: {result.get('id')}")
-
-            return {
-                "id": result.get("id"),
-                "merchant_customer_id": result.get("merchant_customer_id", user_id),
-                "email": result.get("email"),
-                "name": result.get("name")
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to create customer: {e}")
-            raise
 
     async def verify_webhook_signature(
         self,

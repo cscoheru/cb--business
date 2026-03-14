@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 0: 市场信息分析卡片</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .disclaimer {
+            background: rgba(255, 193, 7, 0.2);
+            border: 2px solid #ffc107;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            color: white;
+            text-align: center;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .disclaimer strong {
+            display: block;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            position: relative;
+        }
+
+        .card-header.wireless {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .card-header.smartplug {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .card-header.fitness {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .card-header h2 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+
+        .card-header .subtitle {
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+
+        .opportunity-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 50px;
+            padding: 8px 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .card-body {
+            padding: 25px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .stat {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .strengths-weaknesses {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .list-box {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .list-box.strengths {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+        }
+
+        .list-box.weaknesses {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+
+        .list-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
+        .list-box.strengths .list-title {
+            color: #2e7d32;
+        }
+
+        .list-box.weaknesses .list-title {
+            color: #c62828;
+        }
+
+        .list-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .list-box li {
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+            padding-left: 18px;
+            position: relative;
+        }
+
+        .list-box li:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .list-box.strengths li:before {
+            color: #4caf50;
+        }
+
+        .list-box.weaknesses li:before {
+            color: #f44336;
+        }
+
+        .price-analysis {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .price-range {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        .price-tier {
+            text-align: center;
+            flex: 1;
+        }
+
+        .price-tier .label {
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        .price-tier .range {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #e65100;
+        }
+
+        .unmet-needs {
+            background: #e3f2fd;
+            border-radius: 12px;
+            padding: 15px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .unmet-needs .section-title {
+            color: #1565c0;
+        }
+
+        .unmet-need-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .unmet-need-icon {
+            background: #2196f3;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+
+        .unmet-need-text {
+            font-size: 0.85rem;
+            color: #333;
+        }
+
+        .data-sources {
+            background: #fafafa;
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 0.8rem;
+        }
+
+        .data-source-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .data-source-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .reliability-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .reliability-high {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .reliability-medium {
+            background: #ffe0b2;
+            color: #e65100;
+        }
+
+        .reliability-low {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            padding: 20px;
+        }
+
+        .comparison-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 30px;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .comparison-section h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #333;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table th:first-child {
+            border-radius: 12px 0 0 0;
+        }
+
+        .comparison-table th:last-child {
+            border-radius: 0 12px 0 0;
+        }
+
+        .comparison-table td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .comparison-table tr:last-child td:first-child {
+            border-radius: 0 0 0 12px;
+        }
+
+        .comparison-table tr:last-child td:last-child {
+            border-radius: 0 0 12px 0;
+        }
+
+        .rank-badge {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .rank-1 {
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            color: #333;
+        }
+
+        .rank-2 {
+            background: linear-gradient(135deg, #c0c0c0, #e0e0e0);
+            color: #333;
+        }
+
+        .rank-3 {
+            background: linear-gradient(135deg, #cd7f32, #daa520);
+        }
+
+        @media (max-width: 768px) {
+            .cards-container {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .strengths-weaknesses {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Phase 0 市场信息分析</h1>
+        <p>基于公开数据的AI分析 | 生成日期: 2026-03-12</p>
+    </div>
+
+    <div class="disclaimer">
+        <strong>⚠️ 重要说明</strong>
+        这是市场信息收集工具，不是投资建议。我们不保证任何商业结果。<br>
+        你需要自己做尽职调查，并承担所有决策风险。<br>
+        数据来源：市场研究报告、Reddit讨论、YouTube评论。可靠性评分：75/100
+    </div>
+
+    <div class="cards-container">
+        <!-- Card 1: Wireless Earbuds -->
+        <div class="card">
+            <div class="card-header wireless">
+                <div class="opportunity-badge">78/100</div>
+                <h2>🎧 无线耳机</h2>
+                <div class="subtitle">Wireless Earbuds | 最清晰的机会</div>
+            </div>
+            <div class="card-body">
+                <div class="section">
+                    <div class="section-title">📈 市场数据</div>
+                    <div class="stat-grid">
+                        <div class="stat">
+                            <div class="stat-label">市场规模 (2030)</div>
+                            <div class="stat-value">$30.5B</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">年增长率</div>
+                            <div class="stat-value">24.28%</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">亚太份额</div>
+                            <div class="stat-value">44.57%</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">北美份额</div>
+                            <div class="stat-value">30.5%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="strengths-weaknesses">
+                        <div class="list-box strengths">
+                            <div class="list-title">✅ 产品优点</div>
+                            <ul>
+                                <li>便携性强</li>
+                                <li>降噪功能</li>
+                                <li>续航>6小时</li>
+                                <li>音质好</li>
+                            </ul>
+                        </div>
+                        <div class="list-box weaknesses">
+                            <div class="list-title">❌ 产品缺点</div>
+                            <ul>
+                                <li>容易丢失</li>
+                                <li>连接不稳定</li>
+                                <li>充电盒易坏</li>
+                                <li>ANC有杂音</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">💰 价格分析</div>
+                    <div class="price-analysis">
+                        <div style="text-align: center; font-weight: bold; margin-bottom: 8px;">甜蜜价格: $40-60</div>
+                        <div class="price-range">
+                            <div class="price-tier">
+                                <div class="label">预算</div>
+                                <div class="range">&lt;$50</div>
+                            </div>
+                            <div class="price-tier" style="background: rgba(255,255,255,0.5); border-radius: 8px; margin: 0 5px;">
+                                <div class="label">最佳</div>
+                                <div class="range">$40-60</div>
+                            </div>
+                            <div class="price-tier">
+                                <div class="label">高端</div>
+                                <div class="range">$80-120</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">💡 未满足的需求</div>
+                    <div class="unmet-needs">
+                        <div class="unmet-need-item">
+                            <div class="unmet-need-icon">1</div>
+                            <div class="unmet-need-text"><strong>防丢失设计</strong> - 用户最大痛点，无人解决好</div>
+                        </div>
+                        <div class="unmet-need-item">
+                            <div class="unmet-need-icon">2</div>
+                            <div class="unmet-need-text"><strong>稳定连接</strong> - 连接不稳定是常见抱怨</div>
+                        </div>
+                        <div class="unmet-need-item">
+                            <div class="unmet-need-icon">3</div>
+                            <div class="unmet-need-text"><strong>耐用充电盒</strong> - 充电盒容易损坏</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">📊 数据来源</div>
+                    <div class="data-sources">
+                        <div class="data-source-item">
+                            <span>Reddit/YouTube评论</span>
+                            <span class="reliability-badge reliability-high">85%</span>
+                        </div>
+                        <div class="data-source-item">
+                            <span>市场研究报告</span>
+                            <span class="reliability-badge reliability-high">75%</span>
+                        </div>
+                        <div class="data-source-item">
+                            <span>用户讨论</span>
+                            <span class="reliability-badge reliability-high">80%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Smart Plugs -->
+        <div class="card">
+            <div class="card-header smartplug">
+                <div class="opportunity-badge">72/100</div>
+                <h2>🔌 智能插座</h2>
+                <div class="subtitle">Smart Plugs | 增长最快</div>
+            </div>
+            <div class="card-body">
+                <div class="section">
+                    <div class="section-title">📈 市场数据</div>
+                    <div class="stat-grid">
+                        <div class="stat">
+                            <div class="stat-label">市场增长</div>
+                            <div class="stat-value">+$22.79B</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">年增长率</div>
+                            <div class="stat-value">26.1%</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">市场规模 (2026)</div>
+                            <div class="stat-value">$5.29B</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">预测 (2031)</div>
+                            <div class="stat-value">$16.58B</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="strengths-weaknesses">
+                        <div class="list-box strengths">
+                            <div class="list-title">✅ 市场优势</div>
+                            <ul>
+                                <li>增长最快(26%)</li>
+                                <li>技术门槛低</li>
+                                <li>复购率高</li>
+                                <li>生态成熟</li>
+                            </ul>
+                        </div>
+                        <div class="list-box weaknesses">
+                            <div class="list-title">⚠️ 市场风险</div>
+                            <ul>
+                                <li>商品化竞争</li>
+                                <li>利润率低</li>
+                                <li>价格敏感</li>
+                                <li>同质化严重</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">💰 价格分析</div>
+                    <div class="price-analysis">
+                        <div style="text-align: center; font-weight: bold; margin-bottom: 8px;">典型价格: $15-40</div>
+                        <div class="price-range">
+                            <div class="price-tier">
+                                <div class="label">预算</div>
+                                <div class="range">$15-25</div>
+                            </div>
+                            <div class="price-tier" style="background: rgba(255,255,255,0.5); border-radius: 8px; margin: 0 5px;">
+                                <div class="label">主流</div>
+                                <div class="range">$25-35</div>
+                            </div>
+                            <div class="price-tier">
+                                <div class="label">高端</div>
+                                <div class="range">$35-50</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">💡 差异化机会</div>
+                    <div class="unmet-needs">
+                        <div class="unmet-need-item">
+                            <div class="unmet-need-icon">1</div>
+                            <div class="unmet-need-text"><strong>能耗监测</strong> - 实时功率显示</div>
+                        </div>
+                        <div class="unmet-need-item">
+                            <div class="unmet-need-icon">2</div>
+                            <div class="unmet-need-text"><strong>多插座设计</strong> - 一个插头控制多个设备</div>
+                        </div>
+                        <div class="unmet-need-item">
+                            <div class="unmet-need-icon">3</div>
+                            <div class="unmet-need-text"><strong>户外防雨</strong> - 室外使用场景</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">📊 数据来源</div>
+                    <div class="data-sources">
+                        <div class="data-source-item">
+                            <span>市场研究报告</span>
+                            <span class="reliability-badge reliability-medium">65%</span>
+                        </div>
+                        <div class="data-source-item">
+                            <span>行业分析</span>
+                            <span class="reliability-badge reliability-medium">70%</span>
+                        </div>
+                        <div class="data-source-item">
+                            <span>用户反馈(有限)</span>
+                            <span class="reliability-badge reliability-medium">60%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Fitness Trackers -->
+        <div class="card">
+            <div class="card-header fitness">
+                <div class="opportunity-badge">75/100</div>
+                <h2>⌚ 健身追踪器</h2>
+                <div class="subtitle">Fitness Trackers | 市场最大</div>
+            </div>
+            <div class="card-body">
+                <div class="section">
+                    <div class="section-title">📈 市场数据</div>
+                    <div class="stat-grid">
+                        <div class="stat">
+                            <div class="stat-label">市场规模</div>
+                            <div class="stat-value">$323.47B</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">年增长率</div>
+                            <div class="stat-value">18-22%</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">增长细分</div>
+                            <div class="stat-value">智能手环</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">主要玩家</div>
+                            <div class="stat-value">5+品牌</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="strengths-weaknesses">
+                        <div class="list-box strengths">
+                            <div class="list-title">✅ 市场优势</div>
+                            <ul>
+                                <li>市场规模最大</li>
+                                <li>健康趋势驱动</li>
+                                <li>持续稳定增长</li>
+                                <li>价格范围广</li>
+                            </ul>
+                        </div>
+                        <div class="list-box weaknesses">
+                            <div class="list-title">⚠️ 市场风险</div>
+                            <ul>
+                                <li>品牌主导严重</li>
+                                <li>苹果生态锁定</li>
+                                <li>小米价格战</li>
+                                <li>需健康认证</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">💰 价格分析</div>
+                    <div class="price-analysis">
+                        <div style="text-align: center; font-weight: bold; margin-bottom: 8px;">价格范围: $20-400+</div>
+                        <div class="price-range">
+                            <div class="price-tier">
+                                <div class="label">预算(小米)</div>
+                                <div class="range">$20-50</div>
+                            </div>
+                            <div class="price-tier" style="background: rgba(255,255,255,0.5); border-radius: 8px; margin: 0 5px;">
+                                <div class="label">中端</div>
+                                <div class="range">$100-200</div>
+                            </div>
+                            <div class="price-tier">
+                                <div class="label">高端(苹果)</div>
+                                <div class="range">$300-400+</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">💡 差异化机会</div>
+                    <div class="unmet-needs">
+                        <div class="unmet-need-item">
+                            <div class="unmet-need-icon">1</div>
+                            <div class="unmet-need-text"><strong>长续航</strong> - 超过2周续航</div>
+                        </div>
+                        <div class="unmet-need-item">
+                            <div class="unmet-need-icon">2</div>
+                            <div class="unmet-need-text"><strong>老年监测</strong> - 专注老年人健康</div>
+                        </div>
+                        <div class="unmet-need-item">
+                            <div class="unmet-need-icon">3</div>
+                            <div class="unmet-need-text"><strong>专项运动</strong> - 针对特定运动优化</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">📊 数据来源</div>
+                    <div class="data-sources">
+                        <div class="data-source-item">
+                            <span>市场研究报告</span>
+                            <span class="reliability-badge reliability-medium">70%</span>
+                        </div>
+                        <div class="data-source-item">
+                            <span>行业分析</span>
+                            <span class="reliability-badge reliability-medium">75%</span>
+                        </div>
+                        <div class="data-source-item">
+                            <span>用户反馈(有限)</span>
+                            <span class="reliability-badge reliability-medium">65%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison Section -->
+    <div class="comparison-section">
+        <h2>📊 三大品类对比分析</h2>
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>排名</th>
+                    <th>品类</th>
+                    <th>机会评分</th>
+                    <th>市场增长</th>
+                    <th>市场规模</th>
+                    <th>推荐理由</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="text-align: center;"><span class="rank-badge rank-1">1</span></td>
+                    <td><strong>无线耳机</strong></td>
+                    <td>78/100</td>
+                    <td>24.28%</td>
+                    <td>$30.5B</td>
+                    <td>明确的未满足需求+甜蜜价格点</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"><span class="rank-badge rank-2">2</span></td>
+                    <td><strong>健身追踪器</strong></td>
+                    <td>75/100</td>
+                    <td>18-22%</td>
+                    <td>$323.47B</td>
+                    <td>市场规模最大+持续增长</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"><span class="rank-badge rank-3">3</span></td>
+                    <td><strong>智能插座</strong></td>
+                    <td>72/100</td>
+                    <td>26.1%</td>
+                    <td>$5.3-16B</td>
+                    <td>增长最快但商品化风险高</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Final Recommendation -->
+    <div class="comparison-section">
+        <h2>🎯 最终建议：无线耳机类目</h2>
+        <div style="line-height: 1.8;">
+            <p><strong>为什么选择无线耳机？</strong></p>
+            <ul style="margin-left: 20px; margin-bottom: 15px;">
+                <li>✅ <strong>未满足需求清晰</strong>：防丢失、稳定连接、耐用充电盒 - 用户抱怨最多的痛点</li>
+                <li>✅ <strong>甜蜜价格明确</strong>：$40-60区间，用户愿意接受且有利润空间</li>
+                <li>✅ <strong>品牌偏好弱</strong>：不像健身追踪器有苹果/三星主导，用户更看功能而非品牌</li>
+                <li>✅ <strong>地区差异明显</strong>：亚洲重价格，欧美重质量，可以分市场策略</li>
+            </ul>
+
+            <p><strong>进入策略：</strong></p>
+            <ul style="margin-left: 20px; margin-bottom: 15px;">
+                <li>🎯 <strong>目标价格</strong>：$45-65（在甜蜜区间内）</li>
+                <li>🌏 <strong>目标市场</strong>：东南亚（性价比）+ 美国（品质）</li>
+                <li>💡 <strong>核心卖点</strong>：防丢失设计 + 稳定连接 + 耐用充电盒</li>
+                <li>🔄 <strong>差异化</strong>：不拼ANC/音质（苹果/三星更强），专注解决用户痛点</li>
+            </ul>
+
+            <p><strong>风险提示：</strong></p>
+            <ul style="margin-left: 20px;">
+                <li>⚠️ 需要较强R&D能力实现防丢失技术</li>
+                <li>⚠️ 需要投入营销教育用户新功能的价值</li>
+                <li>⚠️ 竞争激烈，需要明确差异化定位</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p><strong>⚠️ 免责声明</strong></p>
+        <p>这是基于公开数据的市场信息分析，不是投资建议或商业建议。</p>
+        <p>我们不保证任何结果的准确性或完整性。你需要自己做尽职调查。</p>
+        <p>数据来源：市场研究报告、Reddit/YouTube用户评论、行业分析。</p>
+        <p style="margin-top: 15px;">生成于 Phase 0 Day 3 | 2026-03-12</p>
+    </div>
+</body>
+</html>

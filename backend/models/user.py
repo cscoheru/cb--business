@@ -35,3 +35,5 @@ class User(Base, TimestampMixin):
     currency_preference = Column(String(10), default="CNY")
     is_admin = Column(Boolean, default=False, nullable=False)
     airwallex_customer_id = Column(String(255), index=True)  # Airwallex customer ID for payments
+    registration_plan_choice = Column(String(20))  # 用户注册时的计划选择 (free/trial)
+    trial_reminder_shown = Column(DateTime(timezone=True))  # 试用提醒已显示时间

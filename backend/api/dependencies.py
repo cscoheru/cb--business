@@ -128,3 +128,40 @@ def require_pro_user(current_user: User = Depends(get_current_user)) -> User:
             }
         )
     return current_user
+
+
+async def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
+    db: AsyncSession = Depends(get_db)
+) -> dict | None:
+    """获取当前用户（可选）- 用于不需要认证但需要用户信息的场景"""
+    if credentials is None:
+        return None
+
+    token = credentials.credentials
+    payload = verify_access_token(token)
+
+    if payload is None:
+        return None
+
+    user_id_str: str = payload.get("sub")
+    if user_id_str is None:
+        return None
+
+    try:
+        user_id = uuid.UUID(user_id_str)
+    except ValueError:
+        return None
+
+    user = await db.get(User, user_id)
+    if user is None:
+        return None
+
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "plan_tier": user.plan_tier,
+        "plan_status": user.plan_status,
+        "trial_ends_at": user.trial_ends_at.isoformat() if user.trial_ends_at else None,
+        "is_trial_expired": user.is_trial_expired() if hasattr(user, 'is_trial_expired') else False
+    }

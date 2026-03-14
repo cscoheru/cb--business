@@ -80,6 +80,63 @@ async def signal_discovery_job():
         logger.error(f"❌ [定时任务] 信号发现失败: {e}")
 
 
+async def grade_monitoring_job():
+    """
+    等级监控定时任务
+
+    每6小时执行一次，重新计算用户收藏商机的C-P-I分数并更新等级
+    支持自动升降级和等级变更历史记录
+    """
+    logger.info("📊 [定时任务] 开始等级监控")
+
+    try:
+        async with AsyncSessionLocal() as db:
+            from sqlalchemy import select
+            from models.business_opportunity import BusinessOpportunity, OpportunityGrade
+            from services.grade_manager import GradeManager
+
+            # 查询所有用户收藏的商机（有user_id的商机）
+            result = await db.execute(
+                select(BusinessOpportunity)
+                .where(BusinessOpportunity.user_id.isnot(None))
+                .where(BusinessOpportunity.card_id.isnot(None))  # 必须有关联卡片才能计算CPI
+                .order_by(BusinessOpportunity.last_cpi_recalc_at.asc())  # 优先更新最久未重算的
+            )
+            opportunities = result.scalars().all()
+
+            if not opportunities:
+                logger.info("📊 没有需要监控的商机")
+                return
+
+            logger.info(f"📊 找到 {len(opportunities)} 个需要监控的商机")
+
+            # 批量更新等级
+            results = await GradeManager.batch_update_grades(opportunities, db)
+
+            # 统计结果
+            grade_changes = sum(1 for r in results if r.get('grade_changed'))
+            errors = sum(1 for r in results if r.get('error'))
+
+            logger.info(f"✅ [定时任务] 等级监控完成")
+            logger.info(f"  - 处理商机数: {len(results)}")
+            logger.info(f"  - 等级变更数: {grade_changes}")
+            if errors > 0:
+                logger.warning(f"  - 错误数: {errors}")
+
+            # 记录等级变更详情
+            for result in results:
+                if result.get('grade_changed'):
+                    history = result.get('history_entry', {})
+                    logger.info(
+                        f"  🔄 商机 {result.get('title', 'N/A')[:30]}: "
+                        f"{history.get('from_grade')} → {history.get('to_grade')} "
+                        f"({history.get('old_score'):.1f} → {history.get('new_score'):.1f})"
+                    )
+
+    except Exception as e:
+        logger.error(f"❌ [定时任务] 等级监控失败: {e}", exc_info=True)
+
+
 def setup_opportunity_scheduler():
     """设置商机定时任务"""
 
@@ -101,9 +158,19 @@ def setup_opportunity_scheduler():
         name='信号发现任务'
     )
 
+    # 等级监控：每6小时执行
+    scheduler.add_job(
+        grade_monitoring_job,
+        'interval',
+        hours=6,
+        id='grade_monitoring',
+        name='等级监控任务'
+    )
+
     logger.info("✅ 商机定时任务已设置")
     logger.info("  - 漏斗管理: 每小时")
     logger.info("  - 信号发现: 每30分钟")
+    logger.info("  - 等级监控: 每6小时")
 
 
 def start_opportunity_scheduler():

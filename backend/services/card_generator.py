@@ -1,16 +1,22 @@
 # services/card_generator.py
-"""每日信息卡片生成服务 - 按需生成版本"""
+"""每日信息卡片生成服务 - 按需生成版本
+
+✅ 打通数据孤岛核心实现：
+- 使用DataSourceRegistry统一管理多数据源
+- 融合爬虫AI分析结果
+- 支持Oxylabs、Google Trends等多源聚合
+"""
 
 import logging
 from typing import List, Dict, Any
 from datetime import datetime
 import asyncio
 
-from crawler.products.oxylabs_client import OxylabsClient
 from models.card import Card
 from config.database import AsyncSessionLocal
 from sqlalchemy import select
 from services.cache import cache_service
+from services.data_source_registry import data_source_registry
 
 logger = logging.getLogger(__name__)
 
@@ -81,31 +87,36 @@ CATEGORIES = {
 
 
 class CardGenerator:
-    """卡片生成服务"""
+    """卡片生成服务 - 使用统一数据源注册中心"""
 
     def __init__(self):
-        self.client = OxylabsClient()
+        # ✅ 不再直接使用OxylabsClient，而是通过DataSourceRegistry
+        self.registry = data_source_registry
 
     async def close(self):
-        """关闭客户端"""
-        await self.client.close()
+        """关闭资源（registry不需要关闭）"""
+        pass
 
     async def fetch_category_data(self, category_key: str, use_cache: bool = True) -> List[Dict]:
         """
-        获取指定品类的Amazon数据
+        ✅ 获取指定品类的多源数据（打通数据孤岛）
+
+        使用DataSourceRegistry并行调用多个数据源：
+        - Oxylabs (Amazon产品数据)
+        - Google Trends (搜索趋势)
+        - 未来可添加更多数据源
 
         Args:
             category_key: 品类key
             use_cache: 是否使用缓存（默认True）
 
         Returns:
-            产品列表
+            产品列表（融合多源数据）
         """
         if category_key not in CATEGORIES:
             raise ValueError(f"未知品类: {category_key}")
 
         config = CATEGORIES[category_key]
-        cache_key = f"amazon_products:{category_key}"
 
         # 尝试从缓存获取
         if use_cache:
@@ -114,29 +125,45 @@ class CardGenerator:
                 logger.info(f"✅ {config['name']} 使用缓存数据")
                 return cached_data
 
-        logger.info(f"🔍 获取{config['name']}数据...")
+        logger.info(f"🔍 获取{config['name']}数据（多源聚合）...")
 
         try:
-            products = await self.client.search_amazon(
+            # ✅ 使用DataSourceRegistry并行获取所有数据源
+            result = await self.registry.fetch_all(
+                category=category_key,
                 query=config['search_query'],
                 limit=config['limit'],
-                use_cache=False  # 我们自己处理缓存
+                timeout=30.0
             )
 
+            if not result.get('success'):
+                raise Exception(f"数据源全部失败: {result.get('errors')}")
+
+            # 聚合所有数据源的产品数据
+            all_products = []
+            source_names = []
+
+            for source_name, source_data in result.get('data', {}).items():
+                if source_data and 'products' in source_data:
+                    products = source_data['products']
+                    all_products.extend(products)
+                    source_names.append(source_name)
+                    logger.info(f"  📦 {source_name}: {len(products)}个产品")
+
             # 缓存30分钟
-            if products:
+            if all_products:
                 await cache_service.set(
                     "products",
                     category_key,
-                    products,
+                    all_products,
                     ttl=1800  # 30分钟
                 )
 
-            logger.info(f"✅ 获取到{len(products)}个产品")
-            return products
+            logger.info(f"✅ 多源聚合完成: {len(all_products)}个产品 (来源: {', '.join(source_names)})")
+            return all_products
 
         except Exception as e:
-            logger.error(f"❌ 获取{config['name']}数据失败: {e}")
+            logger.error(f"❌ 多源聚合失败: {e}")
             # 如果API失败，尝试返回过期的缓存数据
             if use_cache:
                 stale_data = await cache_service.get("products", category_key)
@@ -150,16 +177,28 @@ class CardGenerator:
 
     async def analyze_with_ai(self, category_key: str, products: List[Dict]) -> Dict:
         """
-        使用AI分析产品数据，生成卡片内容
+        ✅ 使用AI分析产品数据，融合爬虫AI分析结果
 
         Args:
             category_key: 品类key
             products: 产品列表
 
         Returns:
-            分析结果
+            融合了多源AI分析的卡片内容
         """
-        logger.info(f"🤖 AI分析{category_key}...")
+        logger.info(f"🤖 AI分析{category_key}（融合爬虫数据）...")
+
+        # ✅ 第一步：获取爬虫AI分析结果 (扩大时间范围以获取更多相关文章)
+        from services.data_fusion import data_fusion_service
+        ai_insights = await data_fusion_service.get_relevant_ai_insights(
+            category_key=category_key,
+            days_back=30  # 扩大到30天以获取更多相关文章
+        )
+
+        if ai_insights['total_articles'] > 0:
+            logger.info(f"  📊 融合 {ai_insights['total_articles']} 篇AI分析文章")
+        else:
+            logger.info(f"  ℹ️ 暂无相关AI分析文章")
 
         # 计算价格统计
         prices = [p.get('price') for p in products if p.get('price')]
@@ -191,7 +230,7 @@ class CardGenerator:
                 'total_products': len(products),
                 'price_analysis': price_analysis,
                 'rating_analysis': rating_analysis,
-                'data_source': 'Oxylabs Amazon API',
+                'data_source': '✅ 多源聚合 (Oxylabs + 爬虫AI)',  # 打通数据孤岛
                 'reliability': 0.95,
                 'fetch_time': datetime.now().isoformat()
             },
@@ -200,7 +239,13 @@ class CardGenerator:
             'recommendations': self._generate_recommendations(category_key, products)
         }
 
-        logger.info(f"✅ AI分析完成")
+        # ✅ 融合爬虫AI分析结果
+        if ai_insights['total_articles'] > 0:
+            analysis = data_fusion_service.enrich_card_content(analysis, ai_insights)
+            logger.info(f"✅ AI分析完成（融合{ai_insights['total_articles']}篇爬虫文章）")
+        else:
+            logger.info(f"✅ AI分析完成（未融合爬虫数据）")
+
         return analysis
 
     def _generate_insights(self, category_key: str, products: List[Dict], price_analysis: Dict) -> Dict:
@@ -450,8 +495,8 @@ class CardGenerator:
         return card
 
     def _generate_card_content(self, analysis: Dict) -> Dict:
-        """生成卡片展示内容"""
-        return {
+        """生成卡片展示内容（包含融合的AI洞察）"""
+        content = {
             'summary': {
                 'title': analysis['category_name'],
                 'opportunity_score': analysis['opportunity_score'],
@@ -468,6 +513,15 @@ class CardGenerator:
             'data_sources': [f"{analysis['market_data']['data_source']} (95%)"],
             'generated_at': datetime.now().isoformat()
         }
+
+        # ✅ 包含融合的AI分析结果（如果有）
+        if 'ai_insights_fusion' in analysis:
+            content['ai_insights_fusion'] = analysis['ai_insights_fusion']
+
+        if 'ai_evidence' in analysis:
+            content['ai_evidence'] = analysis['ai_evidence']
+
+        return content
 
 
 async def get_or_generate_cards() -> List[Card]:

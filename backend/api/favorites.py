@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, or_
 from typing import List, Optional, Union, Dict, Any
+from datetime import datetime
+from logging import getLogger
 from models.user import User
 from models.favorite import Favorite
 from models.card import Card
@@ -13,6 +15,7 @@ from api.dependencies import get_db, get_current_user
 from pydantic import BaseModel
 import uuid
 
+logger = getLogger(__name__)
 router = APIRouter(prefix="/api/v1/favorites", tags=["favorites"])
 
 
@@ -78,11 +81,32 @@ async def get_favorites(
             if card:
                 item_data["card"] = card.to_dict()
 
-        # 如果是机会收藏，加载机会数据
+        # 如果是机会收藏，加载机会数据（安全转换，避免访问不存在的列）
         elif favorite.opportunity_id:
-            opportunity = await db.get(BusinessOpportunity, favorite.opportunity_id)
+            # 直接查询机会的基本信息，避免加载关联的card/article
+            from sqlalchemy import select
+            result = await db.execute(
+                select(
+                    BusinessOpportunity.id,
+                    BusinessOpportunity.title,
+                    BusinessOpportunity.description,
+                    BusinessOpportunity.status,
+                    BusinessOpportunity.opportunity_type,
+                    BusinessOpportunity.confidence_score,
+                    BusinessOpportunity.created_at
+                ).where(BusinessOpportunity.id == favorite.opportunity_id)
+            )
+            opportunity = result.first()
             if opportunity:
-                item_data["opportunity"] = opportunity.to_dict()
+                item_data["opportunity"] = {
+                    "id": str(opportunity[0]),
+                    "title": opportunity[1],
+                    "description": opportunity[2],
+                    "status": opportunity[3].value if hasattr(opportunity[3], 'value') else opportunity[3],
+                    "opportunity_type": opportunity[4].value if hasattr(opportunity[4], 'value') else opportunity[4],
+                    "confidence_score": opportunity[5],
+                    "created_at": opportunity[6].isoformat() if opportunity[6] else None,
+                }
 
         favorites_data.append(item_data)
 
@@ -145,7 +169,7 @@ async def add_favorite(
                 id=str(existing_favorite.id),
                 user_id=str(existing_favorite.user_id),
                 card_id=str(existing_favorite.card_id),
-                opportunity_id=None,
+                opportunity_id=str(existing_favorite.opportunity_id) if existing_favorite.opportunity_id else None,
                 created_at=existing_favorite.created_at.isoformat()
             )
 
@@ -155,6 +179,12 @@ async def add_favorite(
             card_id=card_id,
             opportunity_id=None
         )
+
+        # 创建商机记录 (收藏触发商机跟踪)
+        opportunity = await _create_opportunity_from_favorite(card, current_user.id, db)
+        if opportunity:
+            # 将商机关联到收藏
+            new_favorite.opportunity_id = opportunity.id
 
     # 处理机会收藏
     else:
@@ -166,8 +196,12 @@ async def add_favorite(
                 detail="无效的机会ID格式"
             )
 
-        opportunity = await db.get(BusinessOpportunity, opportunity_id)
-        if not opportunity:
+        # 检查机会是否存在（避免加载不存在的关联列）
+        from sqlalchemy import exists as sql_exists
+        opportunity_exists = await db.execute(
+            select(sql_exists().where(BusinessOpportunity.id == opportunity_id))
+        )
+        if not opportunity_exists.scalar():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="商机不存在"
@@ -395,3 +429,99 @@ async def check_opportunity_favorite(
         "is_favorite": favorite is not None,
         "favorite_id": str(favorite.id) if favorite else None
     }
+
+
+async def _create_opportunity_from_favorite(
+    card: Card,
+    user_id: uuid.UUID,
+    db: AsyncSession
+) -> Optional[BusinessOpportunity]:
+    """
+    从收藏卡片创建商机记录
+
+    Args:
+        card: 被收藏的卡片
+        user_id: 用户ID
+        db: 数据库会话
+
+    Returns:
+        BusinessOpportunity: 创建的商机对象，如果已存在则返回None
+    """
+    from services.opportunity_algorithm import opportunity_scorer
+    from services.grade_calculator import GradeCalculator
+
+    # 检查是否已存在该用户的该卡片商机
+    existing_result = await db.execute(
+        select(BusinessOpportunity).where(
+            BusinessOpportunity.card_id == card.id,
+            BusinessOpportunity.user_id == user_id
+        )
+    )
+    existing_opportunity = existing_result.scalar_one_or_none()
+
+    if existing_opportunity:
+        logger.info(f"商机已存在: card={card.id}, user={user_id}, opportunity={existing_opportunity.id}")
+        return existing_opportunity
+
+    try:
+        # 计算C-P-I分数
+        cpi_result = await opportunity_scorer.calculate_opportunity_score(card, db)
+
+        # 根据分数确定等级
+        grade = GradeCalculator.calculate_grade(cpi_result['total_score'])
+
+        # 创建商机
+        opportunity = BusinessOpportunity(
+            title=f"收藏商机: {card.category}",
+            description=card.content.get('summary', {}).get('description', ''),
+            status=BusinessOpportunity.OpportunityStatus.POTENTIAL,
+            opportunity_type=BusinessOpportunity.OpportunityType.PRODUCT,
+            card_id=card.id,
+            user_id=user_id,
+            # 等级系统
+            grade=grade,
+            grade_history=[],
+            last_grade_change_at=datetime.utcnow(),
+            last_cpi_recalc_at=datetime.utcnow(),
+            # C-P-I分数
+            cpi_total_score=cpi_result['total_score'],
+            cpi_competition_score=cpi_result['competition']['score'],
+            cpi_potential_score=cpi_result['potential']['score'],
+            cpi_intelligence_gap_score=cpi_result['intelligence_gap']['score'],
+            # 用户交互
+            user_interactions={
+                "saved": True,
+                "source": "favorite",
+                "saved_at": datetime.utcnow().isoformat()
+            },
+            # AI分析结果
+            ai_insights={
+                "initial_cpi_score": cpi_result,
+                "data_requirements": [],
+                "verification_needs": []
+            },
+            confidence_score=cpi_result['total_score'] / 100,  # 转换为0-1范围
+            # 商机要素
+            elements={
+                "product": {
+                    "category": card.category,
+                    "opportunity_score": cpi_result['total_score'],
+                    "amazon_products_count": len(card.amazon_data.get('products', []))
+                }
+            }
+        )
+
+        db.add(opportunity)
+        await db.flush()  # 获取opportunity.id，但不提交事务
+
+        logger.info(
+            f"✅ 创建商机: card={card.id}, user={user_id}, "
+            f"opportunity={opportunity.id}, grade={grade.value}, score={cpi_result['total_score']:.1f}"
+        )
+
+        return opportunity
+
+    except Exception as e:
+        logger.error(f"创建商机失败: card={card.id}, user={user_id}, error={e}")
+        # 不影响收藏操作，继续执行
+        return None

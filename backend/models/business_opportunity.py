@@ -48,6 +48,14 @@ class TaskPriority(str, enum.Enum):
     LOW = "low"                  # 低优先级
 
 
+class OpportunityGrade(str, enum.Enum):
+    """商机等级 - 基于C-P-I分数的动态等级"""
+    LEAD = "lead"                # 线索: < 60分，需进一步验证
+    NORMAL = "normal"            # 普通商机: 60-69分，保持关注
+    PRIORITY = "priority"        # 重点商机: 70-84分，优先验证
+    LANDABLE = "landable"        # 落地商机: ≥ 85分，可落地执行
+
+
 class BusinessOpportunity(Base):
     """商机模型"""
     __tablename__ = 'business_opportunities'
@@ -76,6 +84,18 @@ class BusinessOpportunity(Base):
     # 锁定状态（用于试用过期）
     is_locked = Column(Boolean, default=False, nullable=False, server_default='false', index=True)
     locked_at = Column(DateTime(timezone=True))
+
+    # 等级系统（基于C-P-I动态分数）
+    grade = Column(SQLEnum(OpportunityGrade, values_callable=lambda x: [e.value for e in x]), nullable=True, index=True)
+    grade_history = Column(JSONB, default=list)  # [{from_grade, to_grade, timestamp, reason}]
+    last_grade_change_at = Column(DateTime(timezone=True))
+    last_cpi_recalc_at = Column(DateTime(timezone=True))
+
+    # C-P-I分数缓存（0-100范围）
+    cpi_total_score = Column(Float, nullable=True, index=True)  # 总分
+    cpi_competition_score = Column(Float, nullable=True)  # 竞争度分数 (40%权重)
+    cpi_potential_score = Column(Float, nullable=True)  # 增长潜力分数 (40%权重)
+    cpi_intelligence_gap_score = Column(Float, nullable=True)  # 信息差分数 (20%权重)
 
     # 关联到Card和Article (融合设计)
     card_id = Column(UUID(as_uuid=True), ForeignKey('cards.id', ondelete='SET NULL'), nullable=True)
@@ -114,6 +134,18 @@ class BusinessOpportunity(Base):
             'confidence_score': self.confidence_score,
             'last_verification_at': self.last_verification_at.isoformat() if self.last_verification_at else None,
             'user_interactions': self.user_interactions or {},
+            # 等级系统
+            'grade': self.grade.value if isinstance(self.grade, OpportunityGrade) else self.grade,
+            'grade_history': self.grade_history or [],
+            'last_grade_change_at': self.last_grade_change_at.isoformat() if self.last_grade_change_at else None,
+            'last_cpi_recalc_at': self.last_cpi_recalc_at.isoformat() if self.last_cpi_recalc_at else None,
+            # C-P-I分数
+            'cpi_total_score': self.cpi_total_score,
+            'cpi_competition_score': self.cpi_competition_score,
+            'cpi_potential_score': self.cpi_potential_score,
+            'cpi_intelligence_gap_score': self.cpi_intelligence_gap_score,
+            'is_locked': self.is_locked,
+            'locked_at': self.locked_at.isoformat() if self.locked_at else None,
             'card_id': str(self.card_id) if self.card_id else None,
             'article_id': str(self.article_id) if self.article_id else None,
             'user_id': str(self.user_id) if self.user_id else None,

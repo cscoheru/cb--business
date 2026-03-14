@@ -35,7 +35,7 @@ from api.favorites import router as favorites_router
 from api.batch_operations import router as batch_operations_router
 from api.openclaw_integration import router as openclaw_router
 from api.notifications import router as notifications_router
-from api.migrate import router as migrate_router
+# from api.migrate import router as migrate_router  # TODO: Rebuild Docker image
 
 
 # 创建FastAPI应用
@@ -157,7 +157,7 @@ app.include_router(openclaw_router)
 app.include_router(notifications_router)
 
 # 数据库迁移路由（需要admin权限）
-app.include_router(migrate_router)
+# app.include_router(migrate_router)  # TODO: migrate.py not included in Docker image
 
 # 可选的 crawler 路由（依赖可能未安装）
 try:

@@ -112,6 +112,50 @@ async def get_articles_sync(
         }
 
 
+@router.get("/articles/{article_id}")
+async def get_article_sync(article_id: str):
+    """获取单篇文章详情（同步版本）"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT id, title, summary, full_content, link, source, language, content_theme,
+                   region, country, platform, published_at, crawled_at, opportunity_score
+            FROM articles
+            WHERE id = %s AND is_processed = true
+        """
+        cursor.execute(query, [article_id])
+        article = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        if not article:
+            return {"error": "Article not found"}, 404
+
+        return {
+            "id": str(article["id"]),
+            "title": article["title"] or "",
+            "summary": article["summary"] or "",
+            "full_content": article["full_content"] or "",
+            "link": article["link"] or "",
+            "source": article["source"] or "",
+            "language": article["language"] or "",
+            "content_theme": article["content_theme"],
+            "region": article["region"],
+            "country": article["country"],
+            "platform": article["platform"],
+            "published_at": article["published_at"].isoformat() if article["published_at"] else None,
+            "crawled_at": article["crawled_at"].isoformat() if article["crawled_at"] else None,
+            "opportunity_score": article["opportunity_score"]
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching article {article_id}: {e}")
+        return {"error": str(e)}, 500
+
+
 @router.get("/stats")
 async def get_stats_sync():
     """获取统计信息"""

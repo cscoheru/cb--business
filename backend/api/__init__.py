@@ -34,8 +34,8 @@ from api.favorites import router as favorites_router
 # from api.unified_favorites import router as unified_favorites_router  # TODO: 部署后再启用
 from api.batch_operations import router as batch_operations_router
 from api.openclaw_integration import router as openclaw_router
-from api.notifications import router as notifications_router
 # from api.migrate import router as migrate_router  # TODO: Rebuild Docker image
+# from api.notifications import router as notifications_router  # TODO: Create this module
 
 
 # 创建FastAPI应用
@@ -154,7 +154,7 @@ app.include_router(batch_operations_router)
 app.include_router(openclaw_router)
 
 # 通知路由
-app.include_router(notifications_router)
+# app.include_router(notifications_router)  # TODO: Create this module
 
 # 数据库迁移路由（需要admin权限）
 # app.include_router(migrate_router)  # TODO: migrate.py not included in Docker image
@@ -180,6 +180,14 @@ except ImportError as e:
 async def startup_event():
     """应用启动时执行"""
     logger.info(f"{settings.APP_NAME} starting up...")
+
+    # ✅ 激活数据源架构 - 打通数据孤岛核心步骤
+    try:
+        from services.data_source_init import initialize_data_sources
+        await initialize_data_sources()
+        logger.info("✅ 数据源架构已激活 - DataSourceRegistry可用")
+    except Exception as e:
+        logger.error(f"Failed to initialize data sources: {e}")
 
     # 启动爬虫调度器
     try:

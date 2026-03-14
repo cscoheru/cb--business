@@ -11,7 +11,7 @@
 
 import logging
 from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
@@ -192,8 +192,9 @@ class OpportunityScorer:
                 keyword_growth_score = 50.0
             else:
                 # 计算最近15天 vs 15-30天的文章数量比
-                recent_15 = [a for a in articles if a.published_at >= datetime.now() - timedelta(days=15)]
-                previous_15 = [a for a in articles if a.published_at < datetime.now() - timedelta(days=15)]
+                now = datetime.now(tz=timezone.utc)
+                recent_15 = [a for a in articles if a.published_at >= now - timedelta(days=15)]
+                previous_15 = [a for a in articles if a.published_at < now - timedelta(days=15)]
 
                 if len(previous_15) > 0:
                     growth_rate = len(recent_15) / len(previous_15)

@@ -10,7 +10,7 @@ from logging import getLogger
 from models.user import User
 from models.favorite import Favorite
 from models.card import Card
-from models.business_opportunity import BusinessOpportunity
+from models.business_opportunity import BusinessOpportunity, OpportunityStatus, OpportunityType
 from api.dependencies import get_db, get_current_user
 from pydantic import BaseModel
 import uuid
@@ -474,8 +474,8 @@ async def _create_opportunity_from_favorite(
         opportunity = BusinessOpportunity(
             title=f"收藏商机: {card.category}",
             description=card.content.get('summary', {}).get('description', ''),
-            status=BusinessOpportunity.OpportunityStatus.POTENTIAL,
-            opportunity_type=BusinessOpportunity.OpportunityType.PRODUCT,
+            status=OpportunityStatus.POTENTIAL,
+            opportunity_type=OpportunityType.PRODUCT,
             card_id=card.id,
             user_id=user_id,
             # 等级系统

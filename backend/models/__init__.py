@@ -15,8 +15,8 @@ from models.business_opportunity import (
 from models.card import Card
 from models.article import Article
 from models.product import Product
-from models.daily_api_usage import DailyAPIUsage
-from models.daily_card_views import DailyCardViews
+from models.daily_api_usage import DailyApiUsage
+from models.daily_card_views import DailyCardView
 
 __all__ = [
     "Base",
@@ -36,6 +36,6 @@ __all__ = [
     "Card",
     "Article",
     "Product",
-    "DailyAPIUsage",
-    "DailyCardViews",
+    "DailyApiUsage",
+    "DailyCardView",
 ]

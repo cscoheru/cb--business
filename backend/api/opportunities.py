@@ -283,10 +283,12 @@ async def get_score_distribution(
 # 智能商机跟踪系统 API (Smart Opportunity System)
 # ============================================================================
 
-from fastapi import Depends, BackgroundTasks
+from fastapi import Depends, BackgroundTasks, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from uuid import UUID
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import select, desc
 from config.database import AsyncSessionLocal, get_db
@@ -294,6 +296,43 @@ from models.business_opportunity import (
     BusinessOpportunity, DataCollectionTask,
     OpportunityStatus, OpportunityType, TaskStatus, TaskPriority
 )
+from models.user import User
+from services.permission_service import PermissionService
+from utils.auth import verify_access_token
+import uuid as uuid_lib
+
+# Optional authentication (allows unauthenticated access)
+security = HTTPBearer(auto_error=False)
+
+
+async def get_optional_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: AsyncSessionLocal = Depends(get_db)
+) -> Optional[User]:
+    """
+    Optional authentication - returns None if not authenticated
+    Used for endpoints that work for both authenticated and unauthenticated users
+    """
+    if not credentials:
+        return None
+
+    token = credentials.credentials
+    payload = verify_access_token(token)
+
+    if payload is None:
+        return None
+
+    user_id_str = payload.get("sub")
+    if user_id_str is None:
+        return None
+
+    try:
+        user_id = uuid_lib.UUID(user_id_str)
+    except ValueError:
+        return None
+
+    user = await db.get(User, user_id)
+    return user
 
 
 # Request/Response Models
@@ -356,14 +395,33 @@ async def start_data_collection(opportunity_id: UUID, data_requirements: List[Di
 async def discover_opportunity(
     request: OpportunityDiscoveryRequest,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_optional_user),
     db: AsyncSessionLocal = Depends(get_db)
 ):
     """
     发现新商机
 
     从原始信号中识别商机，创建BusinessOpportunity记录
+
+    权限: 需要认证 (Trial/Pro用户可创建商机，Free用户受限)
     """
     try:
+        # 权限检查：需要认证
+        if not current_user:
+            raise HTTPException(
+                status_code=401,
+                detail={
+                    'code': 'AUTH_REQUIRED',
+                    'message': '请先登录后再创建商机'
+                }
+            )
+
+        # Free用户: 检查每日配额
+        if current_user.plan_tier == 'free':
+            permission_service = PermissionService(db)
+            # TODO: 检查每日创建配额
+            pass
+
         # 使用AI分析器分析信号
         from services.ai_opportunity_analyzer import AIOpportunityAnalyzer
         analyzer = AIOpportunityAnalyzer()
@@ -406,6 +464,8 @@ async def discover_opportunity(
             'message': f"发现{opportunity.opportunity_type.value}类型商机"
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"商机发现失败: {e}")
         await db.rollback()
@@ -419,12 +479,45 @@ async def list_opportunities(
     min_confidence: Optional[float] = Query(None, ge=0, le=1, description="最低置信度"),
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(20, ge=1, le=100, description="返回数量"),
+    current_user: Optional[User] = Depends(get_optional_user),
     db: AsyncSessionLocal = Depends(get_db)
 ):
-    """获取商机列表"""
+    """
+    获取商机列表
+
+    权限规则:
+    - 未登录: 只显示potential状态商机
+    - Free用户: 只显示potential状态商机
+    - Trial用户: 显示所有商机（试用期内）
+    - Pro用户: 显示所有商机
+    """
     try:
-        # 构建查询
-        query = select(BusinessOpportunity).where(BusinessOpportunity.status != OpportunityStatus.ARCHIVED)
+        # 初始化权限服务
+        permission_service = PermissionService(db)
+
+        # 构建查询 - 根据用户权限筛选
+        if not current_user or current_user.plan_tier == 'free':
+            # Free/unauth: 只显示potential阶段
+            query = select(BusinessOpportunity).where(
+                BusinessOpportunity.status == OpportunityStatus.POTENTIAL
+            )
+        elif current_user.plan_tier == 'trial':
+            # Trial: 检查是否过期
+            if await permission_service._is_trial_expired(current_user):
+                # 过期：只显示potential
+                query = select(BusinessOpportunity).where(
+                    BusinessOpportunity.status == OpportunityStatus.POTENTIAL
+                )
+            else:
+                # 有效：显示所有非归档商机
+                query = select(BusinessOpportunity).where(
+                    BusinessOpportunity.status != OpportunityStatus.ARCHIVED
+                )
+        else:
+            # Pro: 显示所有非归档商机
+            query = select(BusinessOpportunity).where(
+                BusinessOpportunity.status != OpportunityStatus.ARCHIVED
+            )
 
         # 应用筛选
         if status:
@@ -451,8 +544,20 @@ async def list_opportunities(
         result = await db.execute(query)
         opportunities = result.scalars().all()
 
+        # 获取用户权限信息
+        user_access = None
+        if current_user:
+            user_access = {
+                'plan_tier': current_user.plan_tier,
+                'plan_status': current_user.plan_status,
+                'trial_ends_at': current_user.trial_ends_at.isoformat() if current_user.trial_ends_at else None,
+                'is_trial_expired': await permission_service._is_trial_expired(current_user) if current_user.plan_tier == 'trial' else False
+            }
+
         # 获取总数
-        count_query = select(BusinessOpportunity.id).where(BusinessOpportunity.status != OpportunityStatus.ARCHIVED)
+        count_query = select(BusinessOpportunity.id).where(
+            BusinessOpportunity.status != OpportunityStatus.ARCHIVED
+        )
         total_result = await db.execute(count_query)
         total = len(total_result.all())
 
@@ -460,6 +565,7 @@ async def list_opportunities(
             'success': True,
             'total': total,
             'count': len(opportunities),
+            'user_access': user_access,
             'opportunities': [opp.to_dict() for opp in opportunities]
         }
 
@@ -470,13 +576,36 @@ async def list_opportunities(
 
 @router.get("/funnel", response_model=Dict[str, Any])
 async def get_opportunity_funnel(
+    current_user: Optional[User] = Depends(get_optional_user),
     db: AsyncSessionLocal = Depends(get_db)
 ):
-    """获取商机漏斗数据"""
+    """
+    获取商机漏斗数据
+
+    权限规则:
+    - 未登录/Free: 只返回potential阶段数据
+    - Trial/Pro: 返回所有阶段数据
+    """
     try:
+        permission_service = PermissionService(db)
+
+        # 确定用户可访问的状态
+        if not current_user or current_user.plan_tier == 'free':
+            # Free/unauth: 只显示potential
+            accessible_statuses = [OpportunityStatus.POTENTIAL]
+        elif current_user.plan_tier == 'trial':
+            # Trial: 检查是否过期
+            if await permission_service._is_trial_expired(current_user):
+                accessible_statuses = [OpportunityStatus.POTENTIAL]
+            else:
+                accessible_statuses = list(OpportunityStatus)
+        else:
+            # Pro: 所有状态
+            accessible_statuses = list(OpportunityStatus)
+
         funnel = {}
 
-        for status in OpportunityStatus:
+        for status in accessible_statuses:
             result = await db.execute(
                 select(BusinessOpportunity).where(BusinessOpportunity.status == status)
             )
@@ -489,9 +618,19 @@ async def get_opportunity_funnel(
                 'avg_confidence': round(avg_confidence, 2)
             }
 
+        # 添加用户访问信息
+        user_access = None
+        if current_user:
+            user_access = {
+                'plan_tier': current_user.plan_tier,
+                'accessible_statuses': [s.value for s in accessible_statuses],
+                'trial_expired': await permission_service._is_trial_expired(current_user) if current_user.plan_tier == 'trial' else False
+            }
+
         return {
             'success': True,
-            'funnel': funnel
+            'funnel': funnel,
+            'user_access': user_access
         }
 
     except Exception as e:
@@ -502,9 +641,18 @@ async def get_opportunity_funnel(
 @router.get("/{opportunity_id}", response_model=Dict[str, Any])
 async def get_opportunity(
     opportunity_id: str,
+    current_user: Optional[User] = Depends(get_optional_user),
     db: AsyncSessionLocal = Depends(get_db)
 ):
-    """获取商机详情"""
+    """
+    获取商机详情
+
+    权限规则:
+    - 未登录: 只能查看potential状态商机
+    - Free用户: 只能查看potential状态商机
+    - Trial用户: 可查看所有商机（试用期内）
+    - Pro用户: 可查看所有商机
+    """
     try:
         result = await db.execute(
             select(BusinessOpportunity).where(BusinessOpportunity.id == opportunity_id)
@@ -514,6 +662,22 @@ async def get_opportunity(
         if not opportunity:
             raise HTTPException(status_code=404, detail="商机不存在")
 
+        # 权限检查
+        permission_service = PermissionService(db)
+        access = await permission_service.get_opportunity_access(current_user, opportunity)
+
+        # 检查查看权限
+        if not access.get('can_view', False):
+            raise HTTPException(
+                status_code=403 if access.get('access_level') != 'denied' else 401,
+                detail={
+                    'code': 'ACCESS_DENIED',
+                    'message': access.get('reason', '无权限访问此商机'),
+                    'access_level': access.get('access_level'),
+                    'upgrade_required': access.get('upgrade_required', False)
+                }
+            )
+
         # 获取关联的数据采集任务
         tasks_result = await db.execute(
             select(DataCollectionTask)
@@ -522,11 +686,14 @@ async def get_opportunity(
         )
         tasks = tasks_result.scalars().all()
 
-        return {
+        response_data = {
             'success': True,
             'opportunity': opportunity.to_dict(),
-            'data_collection_tasks': [task.to_dict() for task in tasks]
+            'data_collection_tasks': [task.to_dict() for task in tasks],
+            'access': access
         }
+
+        return response_data
 
     except HTTPException:
         raise

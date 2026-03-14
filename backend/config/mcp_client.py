@@ -2,16 +2,19 @@
 MCP客户端配置 - FastAPI连接OpenClaw MCP Server
 
 配置说明:
-1. OpenClaw MCP Server部署在HK服务器
-2. FastAPI通过stdio协议连接MCP
+1. OpenClaw MCP Server部署在HK服务器 (HTTP模式)
+2. FastAPI通过HTTP协议连接MCP
 3. AI可以通过MCP直接调用OpenClaw技能
 """
 
 import asyncio
 import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime
+
+import httpx
 
 try:
     from mcp import ClientSession, StdioServerParameters
@@ -22,6 +25,9 @@ except ImportError:
     logging.warning("MCP SDK未安装，OpenClaw MCP功能将不可用")
 
 logger = logging.getLogger(__name__)
+
+# MCP Server配置
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://openclaw-mcp-server:8001")
 
 
 class OpenClawMCPClient:
@@ -169,6 +175,126 @@ class OpenClawMCPClient:
         await self.disconnect()
 
 
+class HTTPMCPClient:
+    """
+    HTTP MCP客户端
+
+    通过HTTP协议连接到OpenClaw MCP Server
+    解决Docker容器隔离问题
+    """
+
+    def __init__(self, base_url: str = None):
+        """
+        初始化HTTP MCP客户端
+
+        Args:
+            base_url: MCP服务器URL
+        """
+        self.base_url = base_url or MCP_SERVER_URL
+        self.client: Optional[httpx.AsyncClient] = None
+        self._connected = False
+
+    async def connect(self) -> bool:
+        """连接到MCP服务器 (HTTP健康检查)"""
+        try:
+            if self._connected:
+                return True
+
+            self.client = httpx.AsyncClient(timeout=60.0)
+
+            # 健康检查
+            response = await self.client.get(f"{self.base_url}/health")
+            response.raise_for_status()
+
+            self._connected = True
+            logger.info(f"✅ HTTP MCP连接成功: {self.base_url}")
+
+            # 记录可用工具
+            tools_response = await self.client.get(f"{self.base_url}/tools")
+            if tools_response.status_code == 200:
+                tools_data = tools_response.json()
+                tool_names = [t["name"] for t in tools_data.get("tools", [])]
+                logger.info(f"可用工具: {tool_names}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ HTTP MCP连接失败: {e}")
+            self._connected = False
+            return False
+
+    async def disconnect(self):
+        """断开HTTP连接"""
+        if self.client:
+            await self.client.aclose()
+            self._connected = False
+            logger.info("HTTP MCP已断开")
+
+    async def call_tool(
+        self,
+        name: str,
+        arguments: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        调用MCP工具 (OpenClaw技能)
+
+        Args:
+            name: 工具/技能名称
+            arguments: 技能参数
+
+        Returns:
+            工具执行结果
+        """
+        if not self._connected:
+            if not await self.connect():
+                raise ConnectionError("HTTP MCP未连接")
+
+        try:
+            logger.info(f"调用HTTP MCP工具: {name}, 参数: {json.dumps(arguments, ensure_ascii=False)}")
+
+            response = await self.client.post(
+                f"{self.base_url}/tools/{name}",
+                json={"name": name, "arguments": arguments},
+                headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+
+            result = response.json()
+            logger.info(f"HTTP MCP工具返回: {result.get('success')}")
+            return result
+
+        except Exception as e:
+            logger.error(f"调用HTTP MCP工具失败: {e}")
+            raise
+
+    async def list_tools(self) -> List[str]:
+        """列出所有可用的工具"""
+        if not self._connected:
+            if not await self.connect():
+                return []
+
+        try:
+            response = await self.client.get(f"{self.base_url}/tools")
+            if response.status_code == 200:
+                tools_data = response.json()
+                return [t["name"] for t in tools_data.get("tools", [])]
+        except Exception as e:
+            logger.error(f"获取工具列表失败: {e}")
+
+        return []
+
+    def is_connected(self) -> bool:
+        """检查是否已连接"""
+        return self._connected
+
+    async def __aenter__(self):
+        await self.connect()
+        return self
+
+    async def __aexit__(self, *args):
+        await self.disconnect()
+
+
 # 全局单例
 openclaw_mcp: Optional[OpenClawMCPClient] = None
 
@@ -178,16 +304,14 @@ def get_mcp_client() -> OpenClawMCPClient:
     获取全局MCP客户端单例
 
     Returns:
-        OpenClawMCPClient实例
+        OpenClawMCPClient实例 (HTTP模式优先)
     """
     global openclaw_mcp
 
     if openclaw_mcp is None:
-        if not MCP_AVAILABLE:
-            logger.warning("MCP SDK未安装，返回Mock客户端")
-            openclaw_mcp = MockMCPClient()
-        else:
-            openclaw_mcp = OpenClawMCPClient()
+        # 优先使用HTTP MCP客户端
+        openclaw_mcp = HTTPMCPClient()
+        logger.info("使用HTTP MCP客户端")
 
     return openclaw_mcp
 
@@ -210,7 +334,7 @@ class MockMCPClient:
     async def disconnect(self):
         self._connected = False
 
-    async def call_tool(self, name: str, arguments: Dict[str, Any]):
+    async def call_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """返回模拟数据"""
         logger.info(f"Mock MCP调用: {name}")
 
@@ -246,14 +370,7 @@ class MockMCPClient:
             }
         }
 
-        response = mock_responses.get(name, {"success": True, "data": {}})
-
-        # 返回格式与真实MCP一致
-        from mcp.types import TextContent
-        return [TextContent(
-            type="text",
-            text=json.dumps(response, ensure_ascii=False)
-        )]
+        return mock_responses.get(name, {"success": True, "data": {}})
 
     async def list_tools(self) -> List[str]:
         return ["deep_market_scan", "mock_order_analysis", "competitor_watch"]
@@ -284,9 +401,11 @@ async def call_openclaw_skill(
 
     result = await client.call_tool(skill_name, params)
 
-    # 解析结果
-    import json
-    if result and len(result) > 0:
+    # HTTP MCP客户端返回dict，stdio返回list
+    if isinstance(result, dict):
+        return result
+    elif isinstance(result, list) and len(result) > 0:
+        # 兼容stdio格式
         text_content = result[0]
         if hasattr(text_content, 'text'):
             return json.loads(text_content.text)

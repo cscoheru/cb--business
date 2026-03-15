@@ -4,7 +4,7 @@
 提供商机列表和详情查询功能。
 """
 
-from fastapi import APIRouter, Query, HTTPException, Depends
+from fastapi import APIRouter, Query, HTTPException, Depends, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, List, Optional
@@ -28,19 +28,37 @@ router = APIRouter(prefix="/api/v1/opportunities", tags=["opportunities"])
 
 @router.get("/funnel")
 async def get_opportunity_funnel(
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取商机漏斗数据"""
+    """获取商机漏斗数据（用户专属）"""
     try:
-        # 查询各状态的统计数据
-        result = await db.execute(
-            select(
-                BusinessOpportunity.status,
-                func.count(BusinessOpportunity.id).label('count'),
-                func.avg(BusinessOpportunity.confidence_score).label('avg_confidence')
-            )
-            .group_by(BusinessOpportunity.status)
+        # 构建查询 - 只查询当前用户的商机
+        query = select(
+            BusinessOpportunity.status,
+            func.count(BusinessOpportunity.id).label('count'),
+            func.avg(BusinessOpportunity.confidence_score).label('avg_confidence')
         )
+
+        # 已登录用户：只看自己的商机
+        if current_user:
+            query = query.where(BusinessOpportunity.user_id == current_user.id)
+        else:
+            # 匿名用户：看不到任何商机（或可以改为显示公开商机）
+            return {
+                "success": True,
+                "funnel": {
+                    'potential': {'count': 0, 'avg_confidence': 0, 'label': '发现期'},
+                    'verifying': {'count': 0, 'avg_confidence': 0, 'label': '验证期'},
+                    'assessing': {'count': 0, 'avg_confidence': 0, 'label': '评估期'},
+                    'executing': {'count': 0, 'avg_confidence': 0, 'label': '执行期'},
+                },
+                "total": 0,
+                "message": "登录后查看您的商机"
+            }
+
+        query = query.group_by(BusinessOpportunity.status)
+        result = await db.execute(query)
 
         funnel_data = {
             'potential': {'count': 0, 'avg_confidence': 0, 'label': '发现期'},
@@ -76,19 +94,24 @@ async def get_opportunity_funnel(
 
 @router.get("/grades")
 async def get_opportunity_grades(
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取所有商机的等级统计"""
+    """获取用户商机的等级统计"""
     try:
-        result = await db.execute(
-            select(
-                BusinessOpportunity.grade,
-                func.count(BusinessOpportunity.id).label('count'),
-                func.avg(BusinessOpportunity.cpi_total_score).label('avg_score')
-            )
-            .where(BusinessOpportunity.grade.isnot(None))
-            .group_by(BusinessOpportunity.grade)
-        )
+        # 构建查询
+        query = select(
+            BusinessOpportunity.grade,
+            func.count(BusinessOpportunity.id).label('count'),
+            func.avg(BusinessOpportunity.cpi_total_score).label('avg_score')
+        ).where(BusinessOpportunity.grade.isnot(None))
+
+        # 已登录用户：只看自己的商机
+        if current_user:
+            query = query.where(BusinessOpportunity.user_id == current_user.id)
+
+        query = query.group_by(BusinessOpportunity.grade)
+        result = await db.execute(query)
 
         grades = {}
         for row in result:
@@ -120,33 +143,51 @@ async def get_opportunity_grades(
 
 @router.get("/stats")
 async def get_opportunity_stats(
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取商机统计信息"""
+    """获取商机统计信息（用户专属）"""
     try:
-        # 总数
+        # 未登录用户返回空统计
+        if not current_user:
+            return {
+                "success": True,
+                "total": 0,
+                "by_status": {},
+                "by_grade": {},
+                "recent_count": 0,
+                "message": "登录后查看您的商机统计"
+            }
+
+        # 总数（用户专属）
         total_result = await db.execute(
-            select(func.count()).select_from(BusinessOpportunity)
+            select(func.count()).select_from(BusinessOpportunity).where(
+                BusinessOpportunity.user_id == current_user.id
+            )
         )
         total = total_result.scalar() or 0
 
-        # 按状态统计
+        # 按状态统计（用户专属）
         status_result = await db.execute(
             select(
                 BusinessOpportunity.status,
                 func.count(BusinessOpportunity.id)
             )
+            .where(BusinessOpportunity.user_id == current_user.id)
             .group_by(BusinessOpportunity.status)
         )
         by_status = {row[0]: row[1] for row in status_result}
 
-        # 按等级统计
+        # 按等级统计（用户专属）
         grade_result = await db.execute(
             select(
                 BusinessOpportunity.grade,
                 func.count(BusinessOpportunity.id)
             )
-            .where(BusinessOpportunity.grade.isnot(None))
+            .where(
+                BusinessOpportunity.grade.isnot(None),
+                BusinessOpportunity.user_id == current_user.id
+            )
             .group_by(BusinessOpportunity.grade)
         )
         by_grade = {row[0].value: row[1] for row in grade_result}
@@ -176,13 +217,26 @@ async def list_opportunities(
     grade: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取商机列表"""
+    """获取商机列表（用户专属）"""
     try:
         query = select(BusinessOpportunity)
 
-        # 应用筛选
+        # 核心筛选：只显示用户自己的商机
+        if current_user:
+            query = query.where(BusinessOpportunity.user_id == current_user.id)
+        else:
+            # 匿名用户返回空列表
+            return {
+                "success": True,
+                "total": 0,
+                "opportunities": [],
+                "message": "登录后查看您的商机"
+            }
+
+        # 应用其他筛选
         if status:
             query = query.where(BusinessOpportunity.status == status)
         if type:
@@ -333,10 +387,12 @@ async def create_opportunity_from_card(
 
         # 检查匿名用户限制
         if not current_user:
-            # 匿名用户: 检查已有商机数量
+            # 匿名用户: 只计算从卡片创建的商机（有card_id的）
+            # 不计算RSS自动生成的商机（那些是系统级的，不应该影响用户配额）
             anon_opportunities_count = await db.execute(
                 select(func.count()).select_from(BusinessOpportunity).where(
-                    BusinessOpportunity.user_id.is_(None)
+                    BusinessOpportunity.user_id.is_(None),
+                    BusinessOpportunity.card_id.isnot(None)  # 只计算从卡片创建的
                 )
             )
             count = anon_opportunities_count.scalar() or 0

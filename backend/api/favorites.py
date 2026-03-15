@@ -181,10 +181,18 @@ async def add_favorite(
         )
 
         # 创建商机记录 (收藏触发商机跟踪)
-        opportunity = await _create_opportunity_from_favorite(card, current_user.id, db)
-        if opportunity:
-            # 将商机关联到收藏
-            new_favorite.opportunity_id = opportunity.id
+        logger.info(f"🔍 开始创建商机: card={card.id}, user={current_user.id}")
+        try:
+            opportunity = await _create_opportunity_from_favorite(card, current_user.id, db)
+            logger.info(f"🔍 商机创建结果: {opportunity.id if opportunity else 'None'}")
+            if opportunity:
+                # 将商机关联到收藏
+                new_favorite.opportunity_id = opportunity.id
+                logger.info(f"✅ 商机关联成功: favorite={new_favorite.id}, opportunity={opportunity.id}")
+        except Exception as e:
+            logger.error(f"❌ 创建商机异常: {type(e).__name__}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     # 处理机会收藏
     else:

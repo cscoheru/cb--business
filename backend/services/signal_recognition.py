@@ -7,7 +7,7 @@
 
 import logging
 from typing import Dict, Any, List, Optional, Set
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, Boolean
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.card import Card

@@ -1,6 +1,7 @@
 # services/product_data_service.py
 """产品数据服务 - 从 Cards 表获取完整产品数据"""
 import logging
+import asyncio
 from typing import List, Dict, Any, Optional
 from sqlalchemy import select, desc
 from config.database import AsyncSessionLocal
@@ -25,7 +26,9 @@ class ProductDataService:
         category_id: str,
         category_mapping: Dict[str, List[str]],
         limit: int,
-        db: AsyncSessionLocal
+        db: AsyncSessionLocal,
+        fetch_details: bool = False,
+        details_limit: int = 10
     ) -> Optional[List[Dict[str, Any]]]:
         """
         获取包含完整详情的产品列表
@@ -35,6 +38,8 @@ class ProductDataService:
             category_mapping: 分类映射字典
             limit: 返回数量限制
             db: 数据库会话
+            fetch_details: 是否获取完整详情（调用Oxylabs Product API）
+            details_limit: 获取详情的产品数量限制
 
         Returns:
             产品列表，如果未找到则返回None
@@ -64,8 +69,13 @@ class ProductDataService:
                 if card and card.amazon_data:
                     products = card.amazon_data.get("products", [])
                     if products:
-                        # 增强产品数据
-                        enhanced_products = await self._enhance_products(products, card_category)
+                        # 增强产品数据（可选获取完整详情）
+                        enhanced_products = await self._enhance_products(
+                            products,
+                            card_category,
+                            fetch_details=fetch_details,
+                            details_limit=details_limit
+                        )
                         all_products.extend(enhanced_products)
                         logger.debug(f"Found {len(enhanced_products)} products in {card_category}")
             except Exception as e:
@@ -83,7 +93,9 @@ class ProductDataService:
     async def _enhance_products(
         self,
         products: List[Dict[str, Any]],
-        category: str
+        category: str,
+        fetch_details: bool = False,
+        details_limit: int = 10
     ) -> List[Dict[str, Any]]:
         """
         增强产品数据，确保所有必需字段都存在
@@ -91,14 +103,30 @@ class ProductDataService:
         Args:
             products: 原始产品列表
             category: 产品类别
+            fetch_details: 是否获取完整详情（调用Oxylabs Product API）
+            details_limit: 获取详情的产品数量限制
 
         Returns:
             增强后的产品列表
         """
         enhanced = []
 
-        for product in products:
+        # 如果启用详情获取，先对前N个产品获取完整数据
+        detailed_products = {}
+        if fetch_details and products:
+            asins_to_fetch = [p.get("asin") for p in products[:details_limit] if p.get("asin")]
+            if asins_to_fetch:
+                detailed_products = await self._fetch_product_details_batch(asins_to_fetch)
+
+        for idx, product in enumerate(products):
             if not product or not isinstance(product, dict):
+                continue
+
+            asin = product.get("asin", "")
+
+            # 如果有从Product API获取的详情，使用详情数据
+            if asin in detailed_products:
+                enhanced.append(detailed_products[asin])
                 continue
 
             # 处理品牌字段 - 优先级：brand > manufacturer > "Unknown"
@@ -125,7 +153,7 @@ class ProductDataService:
             url = self._build_url(product)
 
             enhanced_product = {
-                "asin": product.get("asin", ""),
+                "asin": asin,
                 "title": product.get("title", "N/A"),
                 "brand": brand,
                 "price": price,
@@ -222,6 +250,158 @@ class ProductDataService:
             return f"https://www.amazon.com/dp/{asin}"
 
         return "https://www.amazon.com"
+
+    async def _fetch_product_details_batch(
+        self,
+        asins: List[str],
+        concurrent_limit: int = 3
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        批量获取产品完整详情（调用Oxylabs Product API）
+
+        Args:
+            asins: ASIN列表
+            concurrent_limit: 并发请求限制
+
+        Returns:
+            字典：{asin: enhanced_product_data}
+        """
+        if not asins:
+            return {}
+
+        # 动态导入OxylabsClient（避免循环依赖）
+        try:
+            from crawler.products.oxylabs_client import OxylabsClient
+        except ImportError as e:
+            logger.error(f"Failed to import OxylabsClient: {e}")
+            return {}
+
+        client = OxylabsClient()
+        results = {}
+        semaphore = asyncio.Semaphore(concurrent_limit)
+
+        async def fetch_with_limit(asin: str) -> tuple[str, Optional[Dict[str, Any]]]:
+            """带并发限制的获取函数"""
+            async with semaphore:
+                try:
+                    # 调用Oxylabs Product API（内置1小时缓存）
+                    product_data = await client.get_amazon_product(asin)
+
+                    if product_data:
+                        # 转换为标准格式
+                        return asin, self._convert_oxylabs_product(product_data)
+                    else:
+                        return asin, None
+                except Exception as e:
+                    logger.warning(f"Failed to fetch details for {asin}: {e}")
+                    return asin, None
+
+        # 并发获取所有产品详情
+        tasks = [fetch_with_limit(asin) for asin in asins]
+        fetched_results = await asyncio.gather(*tasks, return_exceptions=False)
+
+        # 构建结果字典
+        for asin, product_data in fetched_results:
+            if product_data:
+                results[asin] = product_data
+
+        logger.info(f"Fetched details for {len(results)}/{len(asins)} products")
+        return results
+
+    def _convert_oxylabs_product(self, oxylabs_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        将Oxylabs Product API返回的数据转换为标准格式
+
+        Args:
+            oxylabs_data: Oxylabs Product API返回的原始数据
+
+        Returns:
+            标准格式的产品数据
+        """
+        # 提取品牌 - 优先级：brand > manufacturer > "Unknown Brand"
+        brand = (
+            oxylabs_data.get("brand") or
+            oxylabs_data.get("manufacturer") or
+            "Unknown Brand"
+        )
+
+        # 提取主图
+        image = self._extract_oxylabs_image(oxylabs_data)
+
+        # 提取价格
+        price = self._extract_oxylabs_price(oxylabs_data)
+
+        # 提取评分
+        rating = oxylabs_data.get("rating") or oxylabs_data.get("rating_value")
+
+        # 标准化评分格式
+        if isinstance(rating, (int, float)):
+            rating = float(rating)
+        elif isinstance(rating, str):
+            try:
+                rating = float(rating)
+            except ValueError:
+                rating = None
+        else:
+            rating = None
+
+        # 提取评论数
+        reviews_count = oxylabs_data.get("reviews_count") or 0
+
+        # 构建URL
+        asin = oxylabs_data.get("asin", "")
+        url = f"https://www.amazon.com/dp/{asin}" if asin else "https://www.amazon.com"
+
+        return {
+            "asin": asin,
+            "title": oxylabs_data.get("title", "N/A"),
+            "brand": brand,
+            "price": price,
+            "rating": rating,
+            "reviews_count": reviews_count,
+            "image": image,
+            "url": url,
+            "source": "oxylabs_product_api"
+        }
+
+    def _extract_oxylabs_image(self, product_data: Dict[str, Any]) -> Optional[str]:
+        """从Oxylabs数据中提取图片"""
+        # Oxylabs Product API返回的图片字段结构
+        images = product_data.get("images")
+
+        if images and isinstance(images, list):
+            # 如果是字典列表，取第一张
+            if images and isinstance(images[0], dict):
+                return images[0].get("url") or images[0].get("link")
+            # 如果是字符串列表，直接取第一个
+            elif images and isinstance(images[0], str):
+                return images[0]
+
+        # 尝试其他可能的图片字段
+        return product_data.get("main_image") or product_data.get("image")
+
+    def _extract_oxylabs_price(self, product_data: Dict[str, Any]) -> Optional[float]:
+        """从Oxylabs数据中提取价格"""
+        # Oxylabs可能返回的价格字段
+        price = (
+            product_data.get("price") or
+            product_data.get("price_amount") or
+            product_data.get("buybox_winner", {}).get("price")
+        )
+
+        if isinstance(price, (int, float)):
+            return float(price)
+
+        if isinstance(price, str):
+            try:
+                # 移除货币符号
+                clean_price = price.replace("$", "").replace("£", "").replace("€", "")
+                clean_price = clean_price.replace(",", "").strip()
+                return float(clean_price)
+            except (ValueError, AttributeError):
+                pass
+
+        return None
 
 
 # 全局单例

@@ -44,10 +44,16 @@ class OpportunityScorer:
     async def calculate_opportunity_score(
         self,
         card: Card,
-        db: AsyncSession
+        db: AsyncSession,
+        enable_mcp: bool = True
     ) -> Dict[str, Any]:
         """
         为单个 Card 计算商机综合分
+
+        Args:
+            card: 商机卡片
+            db: 数据库会话
+            enable_mcp: 是否启用MCP增强（默认True）
 
         Returns:
             {
@@ -55,53 +61,208 @@ class OpportunityScorer:
                 'competition': {'score': 70, 'details': {...}},
                 'potential': {'score': 90, 'details': {...}},
                 'intelligence_gap': {'score': 88, 'details': {...}},
-                'opportunity_type': '长尾暴利型'  # 商机类型标签
+                'opportunity_type': '长尾暴利型',  # 商机类型标签
+                'mcp_enhanced': True  # 是否使用了MCP增强
             }
         """
         try:
-            # 并行计算三个维度
-            competition_score, competition_details = await self._calculate_competition(card, db)
-            potential_score, potential_details = await self._calculate_potential(card, db)
-            intelligence_score, intelligence_details = await self._calculate_intelligence_gap(card, db)
+            # 第一步: 初始评分
+            initial_result = await self._calculate_base_score(card, db)
 
-            # 加权计算综合分
-            total_score = (
-                competition_score * self.WEIGHTS['competition'] +
-                potential_score * self.WEIGHTS['potential'] +
-                intelligence_score * self.WEIGHTS['intelligence_gap']
-            )
+            # 第二步: 检查是否需要MCP增强
+            if not enable_mcp:
+                return initial_result
 
-            # 确定商机类型
-            opportunity_type = self._classify_opportunity_type(
-                competition_score,
-                potential_score,
-                intelligence_score
-            )
+            needs_enhancement = self._check_if_needs_mcp_enhancement(initial_result)
 
-            return {
-                'total_score': round(total_score, 1),
-                'competition': {
-                    'score': competition_score,
-                    'details': competition_details,
-                    'weight': self.WEIGHTS['competition']
-                },
-                'potential': {
-                    'score': potential_score,
-                    'details': potential_details,
-                    'weight': self.WEIGHTS['potential']
-                },
-                'intelligence_gap': {
-                    'score': intelligence_score,
-                    'details': intelligence_details,
-                    'weight': self.WEIGHTS['intelligence_gap']
-                },
-                'opportunity_type': opportunity_type,
-                'calculated_at': datetime.now().isoformat()
-            }
+            if not needs_enhancement:
+                logger.info(f"Card {card.id} 数据完整，无需MCP增强")
+                return {**initial_result, 'mcp_enhanced': False}
+
+            # 第三步: MCP增强
+            logger.info(f"Card {card.id} 数据置信度不足，触发MCP增强")
+            enhanced_result = await self._enhance_with_mcp(card, initial_result, db)
+
+            return {**enhanced_result, 'mcp_enhanced': True}
 
         except Exception as e:
             logger.error(f"计算商机分数失败: {e}")
             raise
+
+    async def _calculate_base_score(
+        self,
+        card: Card,
+        db: AsyncSession
+    ) -> Dict[str, Any]:
+        """计算基础C-P-I分数（不使用MCP）"""
+        # 并行计算三个维度
+        competition_score, competition_details = await self._calculate_competition(card, db)
+        potential_score, potential_details = await self._calculate_potential(card, db)
+        intelligence_score, intelligence_details = await self._calculate_intelligence_gap(card, db)
+
+        # 加权计算综合分
+        total_score = (
+            competition_score * self.WEIGHTS['competition'] +
+            potential_score * self.WEIGHTS['potential'] +
+            intelligence_score * self.WEIGHTS['intelligence_gap']
+        )
+
+        # 确定商机类型
+        opportunity_type = self._classify_opportunity_type(
+            competition_score,
+            potential_score,
+            intelligence_score
+        )
+
+        return {
+            'total_score': round(total_score, 1),
+            'competition': {
+                'score': competition_score,
+                'details': competition_details,
+                'weight': self.WEIGHTS['competition']
+            },
+            'potential': {
+                'score': potential_score,
+                'details': potential_details,
+                'weight': self.WEIGHTS['potential']
+            },
+            'intelligence_gap': {
+                'score': intelligence_score,
+                'details': intelligence_details,
+                'weight': self.WEIGHTS['intelligence_gap']
+            },
+            'opportunity_type': opportunity_type,
+            'calculated_at': datetime.now().isoformat()
+        }
+
+    def _check_if_needs_mcp_enhancement(self, score_result: Dict[str, Any]) -> bool:
+        """
+        检查是否需要MCP增强
+
+        判断标准:
+        1. 竞争度分数为中等值(50分)且包含estimated标记
+        2. 增长潜力分数为中等值(50分)且文章数量少于20
+        3. 信息差分数为中等值(50分)且使用fallback数据
+        """
+        comp_details = score_result['competition']['details']
+        pot_details = score_result['potential']['details']
+        intel_details = score_result['intelligence_gap']['details']
+
+        # 检查竞争度
+        comp_low_confidence = (
+            score_result['competition']['score'] == 50.0 and
+            comp_details.get('estimated') == True
+        )
+
+        # 检查增长潜力
+        pot_low_confidence = (
+            score_result['potential']['score'] == 50.0 and
+            'error' in pot_details
+        )
+
+        # 检查信息差
+        intel_low_confidence = (
+            score_result['intelligence_gap']['score'] == 50.0 and
+            intel_details.get('fallback') == True
+        )
+
+        return comp_low_confidence or pot_low_confidence or intel_low_confidence
+
+    async def _enhance_with_mcp(
+        self,
+        card: Card,
+        initial_result: Dict[str, Any],
+        db: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        使用MCP增强商机评分
+
+        流程:
+        1. 调用deep_market_scan获取更准确的竞争度数据
+        2. 用新数据重新计算分数
+        3. 合并结果
+        """
+        try:
+            from config.mcp_client import call_openclaw_skill
+
+            # 调用深度市场扫描
+            mcp_result = await call_openclaw_skill(
+                'deep_market_scan',
+                {
+                    'category': card.category,
+                    'anomaly_detected': False,
+                    'depth_level': 'standard'
+                }
+            )
+
+            if not mcp_result.get('success'):
+                logger.warning(f"MCP调用失败，使用初始分数: {mcp_result.get('error')}")
+                return initial_result
+
+            # 从MCP结果中提取增强数据
+            enhanced_data = mcp_result.get('data', {})
+
+            # 用MCP数据增强竞争度分数
+            enhanced_competition = self._enhance_competition_with_mcp(
+                initial_result['competition'],
+                enhanced_data
+            )
+
+            # 重新计算总分
+            new_total = (
+                enhanced_competition['score'] * self.WEIGHTS['competition'] +
+                initial_result['potential']['score'] * self.WEIGHTS['potential'] +
+                initial_result['intelligence_gap']['score'] * self.WEIGHTS['intelligence_gap']
+            )
+
+            # 重新分类商机类型
+            new_opportunity_type = self._classify_opportunity_type(
+                enhanced_competition['score'],
+                initial_result['potential']['score'],
+                initial_result['intelligence_gap']['score']
+            )
+
+            return {
+                'total_score': round(new_total, 1),
+                'competition': enhanced_competition,
+                'potential': initial_result['potential'],
+                'intelligence_gap': initial_result['intelligence_gap'],
+                'opportunity_type': new_opportunity_type,
+                'calculated_at': datetime.now().isoformat(),
+                'mcp_data': enhanced_data
+            }
+
+        except ImportError:
+            logger.warning("MCP客户端未配置，使用初始分数")
+            return initial_result
+        except Exception as e:
+            logger.error(f"MCP增强失败: {e}，使用初始分数")
+            return initial_result
+
+    def _enhance_competition_with_mcp(
+        self,
+        original_competition: Dict[str, Any],
+        mcp_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """使用MCP数据增强竞争度评分"""
+        # MCP返回的brand_concentration更准确
+        brand_concentration = mcp_data.get('brand_concentration', 0.5)
+
+        # 转换为竞争度分数：品牌集中度越高，竞争越激烈，分数越低
+        enhanced_comp_score = max(0, 100 - (brand_concentration * 100))
+
+        return {
+            'score': round(enhanced_comp_score, 1),
+            'details': {
+                **original_competition['details'],
+                'mcp_enhanced': True,
+                'brand_concentration_mcp': round(brand_concentration * 100, 2),
+                'sample_size_mcp': mcp_data.get('sample_size', 0),
+                'price_range': mcp_data.get('price_range', {}),
+                'new_product_count': mcp_data.get('new_product_count', 0)
+            },
+            'weight': original_competition['weight']
+        }
 
     async def _calculate_competition(
         self,

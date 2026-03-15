@@ -12,7 +12,7 @@
 - 认证Token: VqCkbaVWUtIQv5A-AYKSXTegmNWy2V2X8Y06KcZGA30
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
@@ -441,3 +441,267 @@ async def get_openclaw_config():
             "auth_token_prefix": OPENCLAW_AUTH_TOKEN[:10] + "..." if OPENCLAW_AUTH_TOKEN else None
         }
     }
+
+
+# ============================================================================
+# Callback Endpoints
+# ============================================================================
+
+class ChannelCallbackRequest(BaseModel):
+    """OpenClaw Channel执行完成回调请求"""
+    channel_id: str = Field(..., description="执行的Channel ID")
+    execution_id: str = Field(..., description="执行ID")
+    status: str = Field(..., description="执行状态: success, failed, partial")
+    started_at: str = Field(..., description="开始时间")
+    completed_at: str = Field(..., description="完成时间")
+    duration_ms: int = Field(..., description="执行时长(毫秒)")
+    result: Optional[Dict[str, Any]] = Field(None, description="执行结果数据")
+    error: Optional[Dict[str, Any]] = Field(None, description="错误信息")
+    stats: Optional[Dict[str, Any]] = Field(None, description="统计信息")
+
+
+class ChannelCallbackResponse(BaseModel):
+    """回调响应"""
+    success: bool
+    message: str
+    processed: bool = False  # 是否已触发后续处理
+
+
+@router.post("/callback/channel", response_model=ChannelCallbackResponse)
+async def handle_channel_callback(
+    request: ChannelCallbackRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """
+    OpenClaw Channel执行完成回调端点
+
+    当OpenClaw Channel完成执行后，OpenClaw Gateway会调用此端点通知FastAPI。
+
+    处理流程:
+    1. 验证回调签名 (TODO: 添加签名验证)
+    2. 记录执行结果到数据库
+    3. 更新相关的DataCollectionTask状态
+    4. 如果成功，触发智能编排服务的后续处理
+
+    示例回调数据:
+    ```json
+    {
+      "channel_id": "rss-crawler",
+      "execution_id": "exec-1234567890",
+      "status": "success",
+      "started_at": "2026-03-14T10:00:00Z",
+      "completed_at": "2026-03-14T10:05:00Z",
+      "duration_ms": 300000,
+      "result": {
+        "total_fetched": 70,
+        "total_pushed": 70,
+        "sources": 5
+      },
+      "stats": {
+        "sources": 5,
+        "successful": 4,
+        "failed": 1
+      }
+    }
+    ```
+
+    Args:
+        request: Channel执行结果
+        background_tasks: FastAPI后台任务
+        db: 数据库session
+
+    Returns:
+        处理结果确认
+    """
+    try:
+        logger.info(
+            f"📬 收到OpenClaw Channel回调: {request.channel_id} "
+            f"(执行ID: {request.execution_id}, 状态: {request.status})"
+        )
+
+        # 1. 记录回调日志到数据库
+        from models.article import CrawlLog
+        from uuid import uuid4
+
+        log_entry = CrawlLog(
+            id=uuid4(),
+            source=f"openclaw-{request.channel_id}",
+            status=request.status,
+            articles_count=request.stats.get('total_fetched', 0) if request.stats else 0,
+            error_message=str(request.error) if request.error else None,
+            completed_at=datetime.fromisoformat(request.completed_at.replace('Z', '+00:00'))
+        )
+
+        db.add(log_entry)
+        await db.commit()
+
+        # 2. 查找并更新相关的DataCollectionTask
+        task_updated = False
+        try:
+            from models.business_opportunity import DataCollectionTask
+            from sqlalchemy import select
+
+            # 查找包含此execution_id的任务
+            result = await db.execute(
+                select(DataCollectionTask).where(
+                    DataCollectionTask.ai_request.contains(request.execution_id)
+                )
+            )
+            tasks = result.scalars().all()
+
+            if tasks:
+                task = tasks[0]
+
+                # 更新任务状态
+                if request.status == "success":
+                    task.result = request.result
+                    task.completed_at = datetime.utcnow()
+                    task.status = "completed"
+                else:
+                    task.error_message = str(request.error) if request.error else "Channel execution failed"
+                    task.completed_at = datetime.utcnow()
+                    task.status = "failed"
+
+                await db.commit()
+                task_updated = True
+
+                logger.info(f"✅ 更新数据采集任务: {task.id}")
+
+                # 3. 如果任务成功，触发智能编排服务处理结果
+                if request.status == "success" and request.result:
+                    background_tasks.add_task(
+                        _process_channel_result,
+                        str(task.id),
+                        request.result,
+                        db
+                    )
+
+        except Exception as e:
+            logger.warning(f"Failed to update DataCollectionTask: {e}")
+
+        # 4. 记录Channel执行历史
+        await _record_channel_execution_history(request, db)
+
+        return ChannelCallbackResponse(
+            success=True,
+            message="Callback processed successfully",
+            processed=task_updated
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to process channel callback: {e}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process callback: {str(e)}"
+        )
+
+
+async def _process_channel_result(
+    task_id: str,
+    result: Dict[str, Any],
+    db: AsyncSessionLocal
+):
+    """
+    后台任务: 处理Channel执行结果
+
+    当OpenClaw Channel成功完成数据采集后，此函数会被调用来处理结果。
+
+    Args:
+        task_id: 数据采集任务ID
+        result: Channel执行结果
+        db: 数据库session (新的session用于后台任务)
+    """
+    try:
+        logger.info(f"🔄 处理Channel结果: 任务 {task_id}")
+
+        # 调用智能编排服务处理采集结果
+        from services.smart_orchestrator import get_orchestrator
+
+        orchestrator = get_orchestrator()
+
+        # 构造回调数据格式
+        callback_data = {
+            "request_id": task_id,
+            "status": "completed",
+            "result": result
+        }
+
+        await orchestrator.on_collection_complete(callback_data, db)
+
+        logger.info(f"✅ Channel结果处理完成: 任务 {task_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to process channel result for task {task_id}: {e}")
+
+
+async def _record_channel_execution_history(
+    request: ChannelCallbackRequest,
+    db: AsyncSessionLocal
+):
+    """
+    记录Channel执行历史到数据库
+
+    用于分析和监控Channel性能。
+    """
+    try:
+        # 这里可以记录到一个专门的channel_execution_history表
+        # 或者使用Redis缓存最近的历史记录
+        pass
+
+    except Exception as e:
+        logger.warning(f"Failed to record channel execution history: {e}")
+
+
+@router.get("/callback/history")
+async def get_callback_history(
+    channel_id: Optional[str] = None,
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """
+    获取Channel回调历史记录
+
+    Args:
+        channel_id: 可选，过滤特定Channel的历史
+        limit: 返回的记录数
+
+    Returns:
+        历史记录列表
+    """
+    try:
+        from models.article import CrawlLog
+        from sqlalchemy import select, desc
+
+        query = select(CrawlLog)
+
+        if channel_id:
+            query = query.where(CrawlLog.source == f"openclaw-{channel_id}")
+
+        query = query.order_by(desc(CrawlLog.started_at)).limit(limit)
+
+        result = await db.execute(query)
+        logs = result.scalars().all()
+
+        return {
+            "success": True,
+            "count": len(logs),
+            "history": [
+                {
+                    "source": log.source,
+                    "status": log.status,
+                    "articles_count": log.articles_count,
+                    "error_message": log.error_message,
+                    "completed_at": log.completed_at.isoformat() if log.completed_at else None
+                }
+                for log in logs
+            ]
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get callback history: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get history: {str(e)}"
+        )

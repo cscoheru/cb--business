@@ -11,7 +11,7 @@ from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 
 # Set test environment BEFORE any imports
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:?cache=shared"
 os.environ["REDIS_URL"] = "redis://localhost:6379/0"
 os.environ["SECRET_KEY"] = "test_secret_key_for_testing_only"
 os.environ["ALLOWED_ORIGINS"] = "*"
@@ -55,13 +55,30 @@ sys.modules["config.redis"] = MockRedisModule()
 # Now import
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from sqlalchemy import TypeDecorator, VARCHAR, JSON
+from sqlalchemy.dialects.postgresql import JSONB
 from api import app
 from api.dependencies import get_db
-from models.base import Base
-from models.user import User
-from models.subscription import Subscription
-from models.article import Article
+# Import from models/__init__ to ensure all models are registered with Base
+from models import Base, User, Subscription, Article, Payment, Favorite
+
+
+# SQLite 兼容层：将 JSONB 映射为 JSON (SQLite 支持)
+class SQLiteJSONB(TypeDecorator):
+    """SQLite 兼容的 JSONB 类型"""
+    impl = JSON
+
+    cache_ok = True
+
+    def process_result_value(self, value, dialect):
+        return value
+
+    def bind_processor(self, dialect):
+        if dialect.name == 'sqlite':
+            return super().bind_processor(dialect)
+        return super().bind_processor(dialect)
 
 
 # Create a single test engine that will be shared
@@ -69,47 +86,71 @@ test_engine = None
 test_session_factory = None
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    import asyncio
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
 @pytest.fixture(scope="function")
 async def db_setup():
     """Set up test database and session factory."""
     global test_engine, test_session_factory
-    
-    # Create engine
+
+    # Use shared cache in-memory database so all connections see the same data
     test_engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
+        "sqlite+aiosqlite:///:memory:?cache=shared",
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
     )
-    
+
+    # CRITICAL: Replace config.database.engine with our test_engine
+    # This ensures the FastAPI app uses the same database
+    from config import database as db_module
+    db_module.engine = test_engine
+    # Also recreate the session factory with our test engine
+    db_module.AsyncSessionLocal = sessionmaker(
+        test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
+
+    # 为 SQLite 替换所有 JSONB 类型为 JSON
+    from sqlalchemy.dialects.sqlite import JSON as SQLiteJSON
+    for table in Base.metadata.tables.values():
+        for column in table.columns:
+            # 检查是否是 JSONB 或包含 JSONB
+            if hasattr(column.type, 'aspect_types'):
+                # Array/JSON 等复杂类型
+                for aspect in column.type.aspect_types:
+                    if isinstance(aspect, type(JSONB)):
+                        column.type = SQLiteJSON()
+            elif str(column.type) == 'JSONB':
+                column.type = SQLiteJSON()
+
     # Create all tables
     async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    
+        def log_tables(connection):
+            print(f"Creating {len(Base.metadata.tables)} tables...")
+            for table_name in Base.metadata.tables.keys():
+                print(f"  - {table_name}")
+        await conn.run_sync(log_tables)
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+
     # Create session factory
     test_session_factory = async_sessionmaker(
         test_engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     yield test_engine
-    
+
     # Cleanup
     await test_engine.dispose()
+    try:
+        os.unlink(db_path)
+    except:
+        pass
 
 
 @pytest.fixture(scope="function")
 async def db_session(db_setup):
     """Create a test database session."""
+    # Use the global test_session_factory created by db_setup
     async with test_session_factory() as session:
         yield session
 

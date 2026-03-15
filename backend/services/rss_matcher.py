@@ -98,7 +98,17 @@ class RSSMatcher:
     GENERAL_KEYWORDS = [
         "电商", "跨境电商", "选品", "亚马逊", "Amazon",
         "东南亚市场", "电商趋势", "消费电子",
-        "e-commerce", "cross-border", "marketplace"
+        "e-commerce", "cross-border", "marketplace",
+        # 新增电商通用关键词
+        "出海", "外贸", "进出口", "供应链", "物流",
+        "TikTok", "Shopee", "Lazada", "Temu", "Shein",
+        "零售", "批发", "B2B", "B2C", "DTC",
+        # 产品通用词
+        "产品", "销量", "爆款", "新品", "测评",
+        "review", "best seller", "trending", "hot sale",
+        # 市场趋势词
+        "市场", "趋势", "增长", "下滑", "机遇",
+        "market", "trend", "growth", "opportunity"
     ]
 
     def __init__(self, min_relevance: float = 0.3, max_articles: int = 10):

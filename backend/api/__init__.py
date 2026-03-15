@@ -34,6 +34,10 @@ from api.favorites import router as favorites_router
 # from api.unified_favorites import router as unified_favorites_router  # TODO: 部署后再启用
 from api.batch_operations import router as batch_operations_router
 from api.openclaw_integration import router as openclaw_router
+# from api.scheduler import router as scheduler_router  # TODO: Not in container
+# from api.smart_orchestrator import router as smart_orchestrator_router  # TODO: Not in container
+# from api.user_interactions import router as user_interactions_router  # TODO: Not in container
+from api.data_collection_tasks import router as data_collection_tasks_router  # ✅ Added - Task #37
 # from api.migrate import router as migrate_router  # TODO: Rebuild Docker image
 # from api.notifications import router as notifications_router  # TODO: Create this module
 
@@ -124,7 +128,7 @@ async def test():
     """测试端点 - 验证路由是否正常工作"""
     return {
         "message": "Routes are working!",
-        "timestamp": "2026-03-12"
+        "timestamp": "2026-03-14"
     }
 
 
@@ -152,6 +156,23 @@ app.include_router(favorites_router)
 # OpenClaw集成路由
 app.include_router(batch_operations_router)
 app.include_router(openclaw_router)
+
+# 调度器管理路由
+# app.include_router(scheduler_router)  # TODO: Not in container
+
+# 智能编排服务路由
+# app.include_router(smart_orchestrator_router)  # TODO: Not in container
+
+# 用户交互追踪路由
+try:
+    from api.user_interactions import router as user_interactions_router
+    app.include_router(user_interactions_router)
+    logger.info("User interactions router loaded")
+except ImportError as e:
+    logger.warning(f"User interactions router not available: {e}")
+
+# 数据采集任务路由
+app.include_router(data_collection_tasks_router)
 
 # 通知路由
 # app.include_router(notifications_router)  # TODO: Create this module

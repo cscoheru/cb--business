@@ -13,7 +13,6 @@ from config.database import AsyncSessionLocal, get_db
 from models.card import Card
 from crawler.products.oxylabs_client import OxylabsClient
 from config.redis import redis_client
-from services.product_data_service import get_product_data_service
 import os
 
 router = APIRouter(prefix="/api/v1/products", tags=["products"])
@@ -410,7 +409,8 @@ async def _fetch_products_from_cards(
     category_id: str,
     limit: int,
     db: AsyncSessionLocal,
-    fetch_details: bool = False
+    fetch_details: bool = False,
+    details_limit: int = 10
 ) -> Dict[str, Any]:
     """
     从 Cards 表读取产品数据（主要数据源）
@@ -420,12 +420,186 @@ async def _fetch_products_from_cards(
         limit: 返回数量限制
         db: 数据库会话
         fetch_details: 是否获取完整产品详情 (brand, image等)
+        details_limit: 获取详情的产品数量限制
 
     Returns:
         包含产品的字典，如果未找到数据则返回None
     """
-    # 对于所有类别，优先使用同步连接（避免异步引擎密码问题）
-    return _fetch_products_from_cards_sync(category_id, limit)
+    logger.info(f"_fetch_products_from_cards called: category={category_id}, fetch_details={fetch_details}, limit={limit}")
+
+    # 首先从Cards表获取基础数据（使用同步连接）
+    basic_result = _fetch_products_from_cards_sync(category_id, limit)
+
+    if not basic_result or basic_result["count"] == 0:
+        return basic_result
+
+    # 如果需要完整详情，增强前N个产品的数据
+    if fetch_details and basic_result["products"]:
+        logger.info(f"Enhancing {min(details_limit, len(basic_result['products']))} products with details")
+        try:
+            enhanced_products = await _enhance_products_with_details(
+                basic_result["products"],
+                details_limit
+            )
+
+            # 更新产品列表（前N个使用增强数据）
+            basic_result["products"] = enhanced_products + basic_result["products"][details_limit:]
+            basic_result["data_source"] = "cards_table_with_details"
+            logger.info(f"Successfully enhanced products for {category_id}")
+        except Exception as e:
+            logger.error(f"Failed to enhance products, using basic data: {e}", exc_info=True)
+
+    return basic_result
+
+
+async def _enhance_products_with_details(
+    products: List[Dict[str, Any]],
+    limit: int
+) -> List[Dict[str, Any]]:
+    """
+    使用Oxylabs Product API增强产品数据
+
+    Args:
+        products: 基础产品列表
+        limit: 需要增强的产品数量
+
+    Returns:
+        增强后的产品列表
+    """
+    if not products:
+        return []
+
+    # 提取ASIN列表
+    asins_to_fetch = [p.get("asin") for p in products[:limit] if p.get("asin")]
+
+    if not asins_to_fetch:
+        logger.warning("No valid ASINs found for detail fetching")
+        return products[:limit]
+
+    logger.info(f"Fetching details for {len(asins_to_fetch)} ASINs: {asins_to_fetch}")
+
+    try:
+        from crawler.products.oxylabs_client import OxylabsClient
+        client = OxylabsClient()
+
+        # 并发获取产品详情（Oxylabs Product API内置1小时缓存）
+        import asyncio
+        semaphore = asyncio.Semaphore(3)  # 限制并发数
+
+        async def fetch_with_limit(asin: str) -> tuple[str, Optional[Dict]]:
+            async with semaphore:
+                try:
+                    product_data = await client.get_amazon_product(asin)
+                    if product_data:
+                        return asin, _convert_to_standard_format(product_data)
+                    return asin, None
+                except Exception as e:
+                    logger.warning(f"Failed to fetch details for {asin}: {e}")
+                    return asin, None
+
+        # 并发获取
+        tasks = [fetch_with_limit(asin) for asin in asins_to_fetch]
+        results = await asyncio.gather(*tasks, return_exceptions=False)
+
+        # 构建ASIN -> 增强数据的映射
+        enhanced_map = {asin: data for asin, data in results if data is not None}
+
+        logger.info(f"Successfully fetched details for {len(enhanced_map)}/{len(asins_to_fetch)} products")
+
+        # 构建最终产品列表
+        final_products = []
+        for product in products[:limit]:
+            asin = product.get("asin")
+            if asin in enhanced_map:
+                final_products.append(enhanced_map[asin])
+            else:
+                # 保留原始数据
+                final_products.append(product)
+
+        return final_products
+
+    except Exception as e:
+        logger.error(f"Error in _enhance_products_with_details: {e}", exc_info=True)
+        return products[:limit]
+
+
+def _convert_to_standard_format(oxylabs_data: Dict[str, Any]) -> Dict[str, Any]:
+    """将Oxylabs Product API数据转换为标准格式"""
+    # 提取品牌
+    brand = (
+        oxylabs_data.get("brand") or
+        oxylabs_data.get("manufacturer") or
+        "Unknown Brand"
+    )
+
+    # 提取图片
+    image = _extract_oxylabs_image(oxylabs_data)
+
+    # 提取价格
+    price = _extract_oxylabs_price(oxylabs_data)
+
+    # 提取评分
+    rating = oxylabs_data.get("rating")
+    if isinstance(rating, (int, float)):
+        rating = float(rating)
+    elif isinstance(rating, str):
+        try:
+            rating = float(rating)
+        except ValueError:
+            rating = None
+    else:
+        rating = None
+
+    # 构建URL
+    asin = oxylabs_data.get("asin", "")
+    url = f"https://www.amazon.com/dp/{asin}" if asin else "https://www.amazon.com"
+
+    return {
+        "asin": asin,
+        "title": oxylabs_data.get("title", "N/A"),
+        "brand": brand,
+        "price": price,
+        "rating": rating,
+        "reviews_count": oxylabs_data.get("reviews_count", 0),
+        "image": image,
+        "url": url,
+        "source": "oxylabs_product_api"
+    }
+
+
+def _extract_oxylabs_image(product_data: Dict[str, Any]) -> Optional[str]:
+    """从Oxylabs数据中提取图片"""
+    images = product_data.get("images")
+
+    if images and isinstance(images, list):
+        if images and isinstance(images[0], dict):
+            return images[0].get("url") or images[0].get("link")
+        elif images and isinstance(images[0], str):
+            return images[0]
+
+    return product_data.get("main_image") or product_data.get("image")
+
+
+def _extract_oxylabs_price(product_data: Dict[str, Any]) -> Optional[float]:
+    """从Oxylabs数据中提取价格"""
+    price = (
+        product_data.get("price") or
+        product_data.get("price_amount") or
+        product_data.get("buybox_winner", {}).get("price")
+    )
+
+    if isinstance(price, (int, float)):
+        return float(price)
+
+    if isinstance(price, str):
+        try:
+            clean_price = price.replace("$", "").replace("£", "").replace("€", "")
+            clean_price = clean_price.replace(",", "").strip()
+            return float(clean_price)
+        except (ValueError, AttributeError):
+            pass
+
+    return None
 
 
 async def _fetch_products_from_oxylabs(

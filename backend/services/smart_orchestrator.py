@@ -346,13 +346,11 @@ class SmartOpportunityOrchestrator:
                 status_stats[status.value] = count
 
             # 采集任务统计
-            task_result = await db.execute(select(DataCollectionTask.id))
-            total_tasks = len(task_result.all())
+            task_result = await db.execute(select(DataCollectionTask))
+            all_tasks = task_result.scalars().all()
+            total_tasks = len(all_tasks)
 
-            completed_task_result = await db.execute(
-                select(DataCollectionTask.id).where(DataCollectionTask.status == TaskStatus.COMPLETED)
-            )
-            completed_tasks = len(completed_task_result.all())
+            completed_tasks = sum(1 for task in all_tasks if task.status and task.status.value == 'completed')
 
             return {
                 "total_opportunities": total,

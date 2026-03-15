@@ -247,6 +247,76 @@ async def get_cards_overview(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{card_id}/related-news")
+async def get_card_related_news(
+    card_id: str,
+    limit: int = Query(5, ge=1, le=20, description="返回数量"),
+    db: AsyncSessionLocal = Depends(get_db)
+):
+    """
+    获取卡片相关资讯
+
+    注意：此数据仅用于展示，不进入 CPI AI 分析。
+    RSS 文章通过关键词匹配与卡片关联。
+
+    Args:
+        card_id: 卡片ID
+        limit: 返回文章数量
+
+    Returns:
+        相关资讯列表
+    """
+    try:
+        # 首先获取卡片信息
+        result = await db.execute(
+            select(Card).where(Card.id == card_id)
+        )
+        card = result.scalar_one_or_none()
+
+        if not card:
+            raise HTTPException(status_code=404, detail="卡片不存在")
+
+        # 从内容中提取关键词
+        content_keywords = []
+        if card.content:
+            summary = card.content.get("summary", {})
+            if summary.get("title"):
+                content_keywords.append(summary["title"])
+
+        # 调用 RSS 匹配服务
+        from services.rss_matcher import get_related_news_for_card
+
+        articles = await get_related_news_for_card(
+            card_id=str(card.id),
+            category=card.category,
+            title=card.title,
+            content_keywords=content_keywords,
+        )
+
+        # 限制返回数量
+        articles = articles[:limit]
+
+        return {
+            "success": True,
+            "card_id": card_id,
+            "articles": articles,
+            "disclaimer": "行业资讯仅供参考，不计入AI分析评分"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取相关资讯失败: {e}")
+        # 返回空列表而不是抛出异常
+        return {
+            "success": True,
+            "card_id": card_id,
+            "articles": [],
+            "disclaimer": "行业资讯仅供参考，不计入AI分析评分",
+            "error": str(e)
+        }
+
+
 # 通配路由 - 必须放在最后
 @router.get("/{card_id}")
 async def get_card(

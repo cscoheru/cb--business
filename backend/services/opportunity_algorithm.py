@@ -277,41 +277,143 @@ class OpportunityScorer:
         try:
             amazon_products = card.amazon_data.get('products', []) if card.amazon_data else []
 
+            sample_size = len(amazon_products)
+
             if not amazon_products:
                 # 无产品数据，返回中等竞争度（保守估计）
                 return 50.0, {'reason': '无产品数据', 'estimated': True}
 
-            # 计算Top10品牌份额（模拟）
+            # ===== 数据充足性检测 =====
+            # 样本量不足时，使用保守估计
+            is_small_sample = sample_size < 5
+
+            # ===== 1. 品牌集中度计算 =====
             brand_counts = {}
-            for product in amazon_products[:50]:  # 取前50个产品
-                brand = product.get('brand', 'Unknown')
+            for product in amazon_products[:50]:
+                brand = product.get('brand')
+                if not brand:
+                    title = product.get('title', '')
+                    known_brands = ['Anker', 'Samsung', 'Apple', 'Sony', 'Bose', 'JBL', 'Soundcore',
+                                    'Kasa', 'Wyze', 'Belkin', 'Logitech', 'Razer', 'ASUS', 'TP-Link',
+                                    'Xiaomi', 'Huawei', 'Baseus', 'UGreen', 'Aukey', 'TaoTronics']
+                    for known_brand in known_brands:
+                        if known_brand.lower() in title.lower():
+                            brand = known_brand
+                            break
+                    else:
+                        brand = title.split()[0] if title.split() else 'Unknown'
                 brand_counts[brand] = brand_counts.get(brand, 0) + 1
 
             total_products = sum(brand_counts.values())
-            if total_products == 0:
-                return 50.0, {'reason': '无品牌数据', 'estimated': True}
+            unique_brands = len(brand_counts)
 
-            # 计算前10大品牌的市场份额
+            # 品牌集中度：Top品牌份额
             sorted_brands = sorted(brand_counts.items(), key=lambda x: x[1], reverse=True)
             top_10_share = sum(count for _, count in sorted_brands[:10]) / total_products if total_products > 0 else 0
 
-            # Top10品牌份额越高，竞争越激烈，分数越低
-            # 转换为0-100分，份额越大分数越低
-            brand_competition_score = max(0, 100 - (top_10_share * 100))
+            # 品牌集中度分数（带保底值）
+            # 份额越高，竞争越激烈，分数越低
+            # 但最小不低于20分（除非数据极其充足）
+            if is_small_sample:
+                # 小样本时，使用更保守的估计
+                # 假设市场是中等竞争
+                brand_competition_score = 40.0
+            else:
+                brand_competition_score = max(20, 100 - (top_10_share * 100))
 
-            # CPC出价（模拟）
-            # 假设CPC与类目竞争度正相关
+            # ===== 2. 价格离散度计算 =====
+            prices = [p.get('price') for p in amazon_products if p.get('price')]
+            price_variance_score = 50.0  # 默认中等
+
+            if len(prices) >= 2:
+                mean_price = sum(prices) / len(prices)
+                if mean_price > 0:
+                    variance = sum((p - mean_price) ** 2 for p in prices) / len(prices)
+                    std_dev = variance ** 0.5
+                    cv = std_dev / mean_price
+                    # CV: 0-0.2 低竞争, 0.2-0.5 中等, 0.5+ 高竞争
+                    # CV越低，价格越一致，竞争越激烈
+                    price_variance_score = max(20, min(80, 50 + cv * 100))
+
+            # ===== 3. 评分分布计算 =====
+            ratings = [p.get('rating') for p in amazon_products if p.get('rating')]
+            rating_score = 50.0
+
+            if len(ratings) >= 2:
+                avg_rating = sum(ratings) / len(ratings)
+                # 评分越高且越集中，说明产品质量成熟，竞争激烈
+                # 评分分散，说明有机会差异化
+                rating_variance = sum((r - avg_rating) ** 2 for r in ratings) / len(ratings)
+                # 评分方差越小，竞争越激烈
+                rating_score = max(20, min(80, 50 + rating_variance * 200))
+
+            # ===== 4. 评论数量分析 =====
+            review_counts = [p.get('reviews_count', 0) for p in amazon_products if p.get('reviews_count')]
+            review_score = 50.0
+
+            if review_counts:
+                avg_reviews = sum(review_counts) / len(review_counts)
+                # 平均评论数越多，市场越成熟，竞争越激烈
+                # 0-1000: 低竞争, 1000-10000: 中等, 10000+: 高竞争
+                if avg_reviews < 1000:
+                    review_score = 70  # 新兴市场，竞争低
+                elif avg_reviews < 5000:
+                    review_score = 50  # 中等竞争
+                elif avg_reviews < 20000:
+                    review_score = 35  # 成熟市场
+                else:
+                    review_score = 25  # 高度成熟，竞争激烈
+
+            # ===== 5. CPC估算 =====
             category_cpc = self._get_category_cpc(card.category)
-            cpc_normalized = min(100, category_cpc / 2)  # 假设最高CPC为$2
+            cpc_score = min(80, category_cpc * 50)  # CPC越高竞争越激烈，分数越低
 
-            # 计算竞争度分数
-            competition_score = (brand_competition_score * 0.7 + cpc_normalized * 0.3)
+            # ===== 综合计算 =====
+            # 根据样本量调整权重
+            if is_small_sample:
+                # 小样本：降低品牌集中度权重，提高其他指标权重
+                weights = {
+                    'brand': 0.15,
+                    'price': 0.25,
+                    'rating': 0.20,
+                    'review': 0.25,
+                    'cpc': 0.15
+                }
+            else:
+                # 正常样本：品牌集中度权重较高
+                weights = {
+                    'brand': 0.35,
+                    'price': 0.20,
+                    'rating': 0.15,
+                    'review': 0.20,
+                    'cpc': 0.10
+                }
+
+            competition_score = (
+                brand_competition_score * weights['brand'] +
+                price_variance_score * weights['price'] +
+                rating_score * weights['rating'] +
+                review_score * weights['review'] +
+                (100 - cpc_score) * weights['cpc']  # CPC越高分数越低
+            )
+
+            # 确保分数在合理范围内 [25, 85]
+            competition_score = max(25, min(85, competition_score))
 
             return round(competition_score, 1), {
-                'brand_concentration': round(top_10_share * 100, 2),
-                'estimated_cpc': category_cpc,
-                'sample_size': len(amazon_products),
-                'top_brands': dict(sorted_brands[:5])
+                'brand_concentration': round(top_10_share * 100, 1),
+                'brand_score': round(brand_competition_score, 1),
+                'price_variance': round(price_variance_score, 1),
+                'rating_score': round(rating_score, 1),
+                'review_score': round(review_score, 1),
+                'cpc_score': round(100 - cpc_score, 1),
+                'weights_used': weights,
+                'sample_size': sample_size,
+                'unique_brands': unique_brands,
+                'top_brands': dict(sorted_brands[:5]),
+                'price_range': {'min': min(prices) if prices else 0, 'max': max(prices) if prices else 0, 'avg': round(sum(prices)/len(prices), 2) if prices else 0},
+                'rating_range': {'min': min(ratings) if ratings else 0, 'max': max(ratings) if ratings else 0, 'avg': round(sum(ratings)/len(ratings), 1) if ratings else 0},
+                'avg_reviews': round(sum(review_counts)/len(review_counts)) if review_counts else 0
             }
 
         except Exception as e:

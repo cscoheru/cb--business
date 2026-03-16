@@ -84,7 +84,6 @@ async def get_favorites(
         # 如果是机会收藏，加载机会数据（安全转换，避免访问不存在的列）
         elif favorite.opportunity_id:
             # 直接查询机会的基本信息，避免加载关联的card/article
-            from sqlalchemy import select
             result = await db.execute(
                 select(
                     BusinessOpportunity.id,

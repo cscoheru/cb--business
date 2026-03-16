@@ -234,7 +234,9 @@ async def list_opportunities(
 
         # 核心筛选：只显示用户自己的商机
         if current_user:
-            query = query.where(BusinessOpportunity.user_id == current_user.id)
+            # current_user 是 dict，使用 ["id"] 而不是 .id
+            user_id = current_user["id"] if isinstance(current_user, dict) else current_user.id
+            query = query.where(BusinessOpportunity.user_id == user_id)
         else:
             # 匿名用户返回空列表
             return {

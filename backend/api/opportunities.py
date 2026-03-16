@@ -99,16 +99,24 @@ async def get_opportunity_grades(
 ):
     """获取用户商机的等级统计"""
     try:
-        # 构建查询
+        # 未登录用户返回空统计
+        if not current_user:
+            return {
+                "success": True,
+                "grades": {},
+                "total": 0,
+                "message": "登录后查看您的商机统计"
+            }
+
+        # 构建查询 - 只查询当前用户的商机
         query = select(
             BusinessOpportunity.grade,
             func.count(BusinessOpportunity.id).label('count'),
             func.avg(BusinessOpportunity.cpi_total_score).label('avg_score')
-        ).where(BusinessOpportunity.grade.isnot(None))
-
-        # 已登录用户：只看自己的商机
-        if current_user:
-            query = query.where(BusinessOpportunity.user_id == current_user.id)
+        ).where(
+            BusinessOpportunity.grade.isnot(None),
+            BusinessOpportunity.user_id == current_user.id
+        )
 
         query = query.group_by(BusinessOpportunity.grade)
         result = await db.execute(query)

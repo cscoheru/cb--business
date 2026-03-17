@@ -1,5 +1,6 @@
 # models/user.py
 from sqlalchemy import Column, String, DateTime, UUID, Boolean
+from sqlalchemy.orm import relationship
 from config.database import Base
 from models.base import TimestampMixin
 import enum
@@ -37,3 +38,6 @@ class User(Base, TimestampMixin):
     airwallex_customer_id = Column(String(255), index=True)  # Airwallex customer ID for payments
     registration_plan_choice = Column(String(20))  # 用户注册时的计划选择 (free/trial)
     trial_reminder_shown = Column(DateTime(timezone=True))  # 试用提醒已显示时间
+
+    # 关联
+    api_keys = relationship("APIKey", back_populates="user")

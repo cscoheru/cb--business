@@ -37,9 +37,21 @@ from api.openclaw_integration import router as openclaw_router
 # from api.scheduler import router as scheduler_router  # TODO: Not in container
 # from api.smart_orchestrator import router as smart_orchestrator_router  # TODO: Not in container
 # from api.user_interactions import router as user_interactions_router  # TODO: Not in container
-from api.data_collection_tasks import router as data_collection_tasks_router  # ✅ Added - Task #37
+# from api.data_collection_tasks import router as data_collection_tasks_router  # TODO: 文件不存在
+from api.ai_alliance import router as ai_alliance_router  # ✅ AI+OpenClaw智能联盟
 # from api.migrate import router as migrate_router  # TODO: Rebuild Docker image
 # from api.notifications import router as notifications_router  # TODO: Create this module
+
+# 公共 API (第三方开发者)
+try:
+    from api.public.orchestrator import router as public_orchestrator_router
+    from api.public.cpi import router as public_cpi_router
+    from api.public.openclaw import router as public_openclaw_router
+    PUBLIC_APIS_AVAILABLE = True
+    logger.info("Public API modules loaded")
+except ImportError as e:
+    PUBLIC_APIS_AVAILABLE = False
+    logger.warning(f"Public API modules not available: {e}")
 
 
 # 创建FastAPI应用
@@ -157,6 +169,16 @@ app.include_router(favorites_router)
 app.include_router(batch_operations_router)
 app.include_router(openclaw_router)
 
+# AI + OpenClaw 智能联盟状态路由
+app.include_router(ai_alliance_router)
+
+# 公共 API 路由 (第三方开发者)
+if PUBLIC_APIS_AVAILABLE:
+    app.include_router(public_orchestrator_router)
+    app.include_router(public_cpi_router)
+    app.include_router(public_openclaw_router)
+    logger.info("✅ Public API routers registered")
+
 # 调度器管理路由
 # app.include_router(scheduler_router)  # TODO: Not in container
 
@@ -172,7 +194,10 @@ except ImportError as e:
     logger.warning(f"User interactions router not available: {e}")
 
 # 数据采集任务路由
-app.include_router(data_collection_tasks_router)
+# app.include_router(data_collection_tasks_router)  # TODO: 文件不存在
+
+# AI + OpenClaw 智能联盟状态路由
+app.include_router(ai_alliance_router)
 
 # 通知路由
 # app.include_router(notifications_router)  # TODO: Create this module

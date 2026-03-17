@@ -17,6 +17,7 @@ from models.article import Article
 from models.product import Product
 from models.daily_api_usage import DailyApiUsage
 from models.daily_card_views import DailyCardView
+from models.api_key import APIKey, APIUsage
 
 __all__ = [
     "Base",
@@ -38,4 +39,6 @@ __all__ = [
     "Product",
     "DailyApiUsage",
     "DailyCardView",
+    "APIKey",
+    "APIUsage",
 ]
